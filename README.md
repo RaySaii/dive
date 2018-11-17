@@ -60,7 +60,7 @@ ReactDOM.render(
 );
 ```
 
-##More important
+### More important
 
 Manage state in a single state atom.
 
