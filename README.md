@@ -146,12 +146,12 @@ It returns function which expects a state *stream* and eventHandle which can tra
 
   example:
 
-  ```js
+  ```javascript
   import {fromHttp} from 'divejs/utils'
   //...
   const fetchData=params=>fromHttp(fetch(`some-url?params=${params}`).then(res=>res.json()))
   const some$=eventHandle.event('some').pipe(
-  	switchMap(fetchData),
+      switchMap(fetchData),
       map(some=>state=>({...state,some}))
   )
   state$.update(data$)
