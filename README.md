@@ -140,7 +140,11 @@ It returns function which expects a state *stream* and eventHandle which can tra
 
 #### dive/utils
 
-- `fromHttp` expected a promise,returns a stream. Everytime will produce two value,first `{data:undefined,status:'pending'}`,second `{data:some,status:'fulfilled'}`.
+- `fromHttp` expected a promise,returns a stream. Everytime will produce two value.
+
+  first:  `{data:undefined,status:'pending'}`,
+
+  second:  `{data:some,status:'fulfilled'}`.
 
   example:
 
