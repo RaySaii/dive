@@ -176,8 +176,8 @@ It returns function which expects a state *stream* and eventHandle which can tra
          <Get target={source} path={'a.b.c[0]'}>
               {data=><div>{data}</div>}  
          </Get>
-  	// if id set, key will be item[id] */}
-  	// if not , key will be array index or object key */}
+  	// if id set, key will be item[id] 
+  	// if not , key will be array index or object key 
          <Map target={source} id={'id'}>
               {(item,key)=><div key={key}>{item}<div>}   
          </Map>
