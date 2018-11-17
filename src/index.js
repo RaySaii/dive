@@ -3,7 +3,6 @@ import {Observable, of, merge, EMPTY} from 'rxjs'
 import globalState$, {globalState} from './globalState'
 import {distinctUntilChanged, filter, map, share, shareReplay, startWith, switchMap, tap} from 'rxjs/operators'
 import shallowEqual from './shallowEqual'
-import {debug} from '../utils'
 import {cloneDeep, isEqual} from 'lodash'
 
 let id = 0

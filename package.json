@@ -1,6 +1,6 @@
 {
   "name": "divejs",
-  "version": "1.1.6",
+  "version": "1.2.2",
   "description": "",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -15,10 +15,11 @@
   },
   "files": [
     "dist",
-    "./utils.js"
+    "utils.js"
   ],
   "dependencies": {
     "axios": "^0.18.0",
+    "change-emitter": "^0.1.6",
     "immer": "^1.7.4",
     "lodash": "^4.17.11",
     "react-is": "^16.6.0",
@@ -37,6 +38,7 @@
     "cross-env": "^5.2.0",
     "react": "^16.6.0",
     "react-dom": "^16.6.0",
+    "rimraf": "^2.6.2",
     "rollup": "^0.66.5",
     "rollup-plugin-babel": "^4.0.3",
     "rollup-plugin-commonjs": "^9.1.3",

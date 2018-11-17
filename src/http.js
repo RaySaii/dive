@@ -37,5 +37,5 @@ class IHTTP {
 
 const HTTP = new IHTTP()
 export default HTTP
-export const fromHttp = HTTP.fromHttp
-export const fromPureHttp = HTTP.fromPureHttp
+export const _fromHttp = HTTP.fromHttp
+export const _fromPureHttp = HTTP.fromPureHttp
