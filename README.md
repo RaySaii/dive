@@ -151,7 +151,7 @@ It returns function which expects a state *stream* and eventHandle which can tra
   //...
   const fetchData=params=>fromHttp(fetch(`some-url?params=${params}`).then(res=>res.json()))
   const some$=eventHandle.event('some').pipe(
-  	  switchMap(fetchData),
+  	switchMap(fetchData),
       map(some=>state=>({...state,some}))
   )
   state$.update(data$)
@@ -168,19 +168,19 @@ It returns function which expects a state *stream* and eventHandle which can tra
 
   example:
 
-  ```js
+  ```jsx harmony
   <div>
-  	{And(condition1,condition2)&&<span>and</span>}   
-     {Or(condition1,condition2)&&<span>or</span>}
-  	// if value is undefined will return null
-  	<Get target={source} path={'a.b.c[0]'}>
-        {data=><div>{data}</div>}
-  	</Get>
-  	// if id set, key will be item[id]
-  	// if not , key will be array index or object key
-  	<Map target={source} id={'id'}>
-      	{(item,key)=><div key={key}>{item}<div>}   
-    </Map>
+         {And(condition1,condition2)&&<span>and</span>}  
+         {Or(condition1,condition2)&&<span>or</span>}
+         {/* if value is undefined will return null */}
+          <Get target={source} path={'a.b.c[0]'}>
+              {data=><div>{data}</div>}
+          </Get>
+  	{/* if id set, key will be item[id] */}
+  	{/* if not , key will be array index or object key */}
+          <Map target={source} id={'id'}>
+              {(item,key)=><div key={key}>{item}<div>}   
+          </Map>
   </div>
   ```
 
