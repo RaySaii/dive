@@ -29,7 +29,7 @@ export function _Map({ target, id, children }) {
   if (isEmpty(target)) return null
   let result = []
   for (let key in target) {
-    let cur = children(target[key], key)
+    let cur = children(target[key], id ? target[key][id] : key)
     result.push(cur)
   }
   return result
