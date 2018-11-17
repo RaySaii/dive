@@ -154,7 +154,7 @@ It returns function which expects a state *stream* and eventHandle which can tra
       switchMap(fetchData),
       map(some=>state=>({...state,some}))
   )
-  state$.update(data$)
+  state$.update(some$)
   // -> state:{some:{data:undefined,status:'pending'}}
   // -> state:{some:{data:someData,status:'fulfilled}}
   //...
