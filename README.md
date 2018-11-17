@@ -116,7 +116,6 @@ It returns function which expects a state *stream* and eventHandle which can tra
 
 **Arguments:**
 
-+++
 
 - `lens?:string|{get:Function,set:Function} `the `lens`  give component state a id in global state.Or composed of a `get` function that extracts the `sub-state`, and a `set` function that returns the updated state whenever the sub-state is modified by the child component.
 
@@ -126,7 +125,6 @@ It returns function which expects a state *stream* and eventHandle which can tra
 
 **Returns:**
 
-+++
 
 *`(Function)`* which expect `{state$,props$,eventHandle}`,and return `Observable<ReactNode>`
 
@@ -193,8 +191,8 @@ It returns function which expects a state *stream* and eventHandle which can tra
   	data={source}
   	status={source.status}
   	loading={<div>Loading...</div>} // when status=='pending'
-      empty={<div>Empty</div>} // when status=='fulfilled' and data is empty
-      render={data=><div>{data}</div>}
+          empty={<div>Empty</div>} // when status=='fulfilled' and data is empty
+          render={data=><div>{data}</div>}
   />
   ```
 
