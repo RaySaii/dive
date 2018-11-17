@@ -14,7 +14,7 @@ npm i divejs
 
 
 
-```js
+```javascript
 import React from 'react'
 import ReactDOM from 'react-dom'
 import dive from 'divejs'
@@ -34,7 +34,7 @@ const Counter=dive({state:{count:1}})(({state$,eventHandle})=>{
 
     return state$.pipe(
     	map(state=>(
-        	<div>
+    	    <div>
                 {state.count}
                 <button onClick={eventHandle.handle('add')}>
                     +
