@@ -71,22 +71,17 @@ Manage state in a single state atom.
 
 Looks like cycle-onionify:
 
-```js
-// without lens
-const WithoutLens=dive({state:{a:1}})(()=>{})
-// -> global state:{dive0:{a:1}}
-// dive give some name
-
+```javascript
 // string lens
 const SimpleLens=dive({lens:'simple',state:{a:1}})(()=>{})
-// -> global state:{dive0:{a:1},simple:{a:1}}
+// -> global state:{simple:{a:1}}
                                       
 ```
 
 #### How to share data among components?
 
 ```js
-// -> global state:{dive0:{a:1},simple:{a:1}}
+// -> global state:{simple:{a:1}}
 const Foo=dive({
     lens:{
         get:state=>({...state.foo,a:state.simple.a}),
@@ -99,7 +94,7 @@ const Foo=dive({
     },
     state:{b:1}
 })(()=>{})
-// -> global state:{dive0:{a:1},simple:{a:1},foo:{a:1,b:1}}
+// -> global state:{simple:{a:1},foo:{a:1,b:1}}
 ```
 
 The `lens` is composed of a `get` function that extracts the `.foo` sub-state, and a `set` function that returns the updated state whenever the sub-state is modified by the child component. 
