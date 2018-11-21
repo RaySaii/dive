@@ -1,16 +1,40 @@
 import {Component} from 'react'
 import {createChangeEmitter} from 'change-emitter'
 import {from, Subject, Observable} from 'rxjs'
-import {distinctUntilChanged, shareReplay} from 'rxjs/operators'
+import {distinctUntilChanged, scan, shareReplay} from 'rxjs/operators'
 import shallowEqual from './shallowEqual'
 import {drivers, oldMap} from './applyDriver'
+import {cloneDeep} from 'lodash'
 
-export const componentFromStream = (state$, stopSubscribe, streamsToVdom) => {
+export const componentFromStream = (ownState$, update, streamsToVdom) => {
   return class ComponentFromStream extends Component {
     constructor() {
       super()
       this.driversSubscription = []
       this.transfer = {}
+      this.state$ = ownState$
+      // 没有lens的组件，不与global连接，自己维护状态
+      if (typeof ownState$ == 'function') {
+        this.state$ = ownState$().pipe(
+            scan((state, reducer) => reducer(state), {}),
+            shareReplay(1),
+        )
+        update = (ownReducer) => {
+          if (ownReducer == null) return
+          let reducer = ownReducer
+          if (typeof ownReducer !== 'function') {
+            reducer = state => Object.assign({}, state, ownReducer)
+          }
+          this.state$.next(reducer)
+        }
+      }
+
+      this.state$.update = function (observable) {
+        this.reducerSubscription = observable.subscribe(reducer => {
+          update(reducer)
+        })
+      }
+
       Object.keys(drivers).forEach(key => {
         this.transfer[key] = new Subject()
         drivers[key].update = (obs) => {
@@ -24,7 +48,7 @@ export const componentFromStream = (state$, stopSubscribe, streamsToVdom) => {
       // Stream of vdom
       this.vdom$ = from(streamsToVdom({
         props$: this.props$.pipe(distinctUntilChanged(shallowEqual), shareReplay(1)),
-        state$: state$,
+        state$: this.state$,
         eventHandle: {
           event: (eventName) => {
             this.eventMap[eventName] = this.eventMap[eventName] || new Subject()
@@ -59,7 +83,7 @@ export const componentFromStream = (state$, stopSubscribe, streamsToVdom) => {
 
     componentWillMount() {
       // Subscribe to child prop changes so we know when to re-render
-      this.subscription = this.vdom$.subscribe({
+      this.vdomSubscription = this.vdom$.subscribe({
         next: vdom => {
           this.setState({ vdom })
         },
@@ -80,8 +104,8 @@ export const componentFromStream = (state$, stopSubscribe, streamsToVdom) => {
       // Call without arguments to complete stream
       this.propsEmitter.emit()
       // Clean-up subscription before un-mounting
-      this.subscription.unsubscribe()
-      stopSubscribe()
+      this.vdomSubscription.unsubscribe()
+      this.reducerSubscription && this.reducerSubscription.unsubscribe()
       this.driversSubscription.forEach(sub => sub.unsubscribe())
     }
 
