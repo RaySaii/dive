@@ -1,5 +1,6 @@
 import React from 'react'
 import {get, isEmpty} from 'lodash'
+import {tap} from 'rxjs/operators'
 
 /**
  * @return {boolean}
@@ -35,5 +36,27 @@ export function _Map({ target, id, children }) {
   return result
 }
 
+export function _debug(message, style = '') {
+  const isDEV = process.env.NODE_ENV == 'development'
+  return tap(
+      nextValue => {
+        if (isDEV) {
+          style
+              ? console.log(message, style, nextValue)
+              : console.log(message, nextValue)
+        }
+      },
+      error => {
+        if (isDEV) {
+          console.error(message, error)
+        }
+      },
+      () => {
+        if (isDEV) {
+          console.log('Observable completed - ', message)
+        }
+      },
+  )
+}
 
 

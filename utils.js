@@ -3,7 +3,7 @@ import {get, isEmpty} from 'lodash'
 import {IHttpComponent} from './dist/HttpComponent'
 import _shallowEqual from './dist/shallowEqual'
 import _HTTP, {_fromHttp, _fromPureHttp} from './dist/http'
-import {_And, _Get, _Map, _Or} from './dist/utils'
+import {_And, _Get, _Map, _Or, _debug} from './dist/utils'
 
 
 export const And = _And
@@ -24,3 +24,4 @@ export const fromHttp = _fromHttp
 
 export const fromPureHttp = _fromPureHttp
 
+export const debug = _debug
