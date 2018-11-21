@@ -22,11 +22,17 @@ export default function dive({ lens, state: initState = {} }) {
     }
     const handledInit = Object.assign(initState, lens.get(globalState))
     update = (ownReducer) => {
-      if (ownReducer == null) return
+      if (ownReducer == null) return  // 当下一个reducer为null时放弃更新
       let reducer = null
       if (typeof ownReducer == 'function') {
-        reducer = state => lens.set(state, ownReducer(lens.get(state)))
+        reducer = state => {
+          const prevState = lens.get(state)
+          const nextState = ownReducer(prevState)
+          if (nextState == prevState) return state// 当下一个reducer函数返回值仍为state时放弃更新
+          return lens.set(state, nextState)
+        }
       } else {
+        // reducer为对象与setState同
         reducer = state => lens.set(state, Object.assign({}, lens.get(state), ownReducer))
       }
       globalState$.next(reducer)
@@ -44,7 +50,12 @@ export default function dive({ lens, state: initState = {} }) {
       if (ownReducer == null) return
       let reducer = null
       if (typeof ownReducer == 'function') {
-        reducer = state => ({ ...state, [myId]: ownReducer(state[myId]) })
+        reducer = state => {
+          const prevState = state[myId]
+          const nextState = ownReducer(prevState)
+          if (nextState == prevState) return state
+          return ({ ...state, [myId]: nextState })
+        }
       } else {
         reducer = state => ({ ...state, [myId]: Object.assign({}, state[myId], ownReducer) })
       }

@@ -17,7 +17,7 @@ export const componentFromStream = (ownState$, update, streamsToVdom) => {
       if (typeof ownState$ == 'function') {
         this.state$ = ownState$().pipe(
             scan((state, reducer) => reducer(state), {}),
-            shareReplay(1),
+            distinctUntilChanged(),
         )
         update = (ownReducer) => {
           if (ownReducer == null) return
