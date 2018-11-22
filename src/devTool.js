@@ -17,7 +17,8 @@ const Box = styled(ResizableBox)`
   top:0;
   left:0;
   z-index: 1000000;
-  transition: all 0.3s ease;
+  transition: all 0.1s linear;
+  transform:${props => props.show=='true' ? 'translateX(0)' : 'translateX(-100%)'};
   .react-resizable-handle{
     bottom: 80px;
     right: 0;
@@ -117,7 +118,7 @@ class DevTool extends React.Component {
     subs: [],
     actions: [],
     ignore: [],
-    hidden: false,
+    show: true,
   }
 
   componentDidMount() {
@@ -151,15 +152,11 @@ class DevTool extends React.Component {
   }
 
   render() {
-    const { hidden, key, subs, global, actions } = this.state
+    const { show, key, subs, global, actions } = this.state
     return <Box width={408}
                 height={window.screen.availHeight}
                 minConstraints={[408, window.screen.availHeight]}
-                style={{
-                  width: 408,
-                  height: window.screen.availHeight,
-                  transform: `translateX(${hidden ? '-100%' : 0})`,
-                }}
+                show={show.toString()}
                 axis={'x'}>
       <div className={'tab_bar'}>
         <div className={'bar'} onClick={() => this.select('global')}>
@@ -174,8 +171,8 @@ class DevTool extends React.Component {
           Actions
           {key == 'actions' && <ActiveBar/>}
         </div>
-        {hidden && <div onClick={() => this.setState({ hidden: false })} className={'right'}> {'>'} </div>}
-        <div onClick={() => this.setState({ hidden: true })} className={'left'}> {'<'} </div>
+        {!show && <div onClick={() => this.setState({ show: true })} className={'right'}> {'>'} </div>}
+        <div onClick={() => this.setState({ show: false })} className={'left'}> {'<'} </div>
       </div>
       <div className={'content'}>
         {
