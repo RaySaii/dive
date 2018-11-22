@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import styled from 'styled-components'
 import {map, switchMap} from 'rxjs/operators'
-import {devGlobalState$,actions$} from './globalState'
+import {devGlobalState$, actions$} from './globalState'
 import subState$, {change$} from './subState'
 import JSONTree from 'react-json-view'
 import {isEmpty, omit, omitBy} from 'lodash'
@@ -273,7 +273,8 @@ class DevTool extends React.Component {
   }
 }
 
-export default function _setDevTool() {
+export default function _setDevTool(bool) {
+  if (!bool) return
   const div = document.createElement('div')
   div.id = 'dive-devtool'
   document.body.appendChild(div)
