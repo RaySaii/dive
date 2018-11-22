@@ -1,0 +1,9 @@
+import {ReplaySubject, Subject} from 'rxjs'
+import {scan, shareReplay} from 'rxjs/operators'
+
+let subState$ = new ReplaySubject().pipe(
+    scan((subs, newSub) => Object.assign(subs, newSub), {}),
+    shareReplay(),
+)
+
+export default subState$

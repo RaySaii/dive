@@ -1,7 +1,7 @@
 import {Component} from 'react'
 import {createChangeEmitter} from 'change-emitter'
 import {from, Subject, Observable} from 'rxjs'
-import {distinctUntilChanged, scan, shareReplay} from 'rxjs/operators'
+import {distinctUntilChanged, scan, shareReplay, tap} from 'rxjs/operators'
 import shallowEqual from './shallowEqual'
 import {drivers, oldMap} from './applyDriver'
 import {cloneDeep} from 'lodash'
@@ -47,7 +47,7 @@ export const componentFromStream = (ownState$, update, streamsToVdom) => {
       })
       // Stream of vdom
       this.vdom$ = from(streamsToVdom({
-        props$: this.props$.pipe(distinctUntilChanged(shallowEqual), shareReplay(1)),
+        props$: this.props$.pipe(distinctUntilChanged(shallowEqual)),
         state$: this.state$,
         eventHandle: {
           event: (eventName) => {
