@@ -4,9 +4,10 @@ import {from, Subject, Observable} from 'rxjs'
 import {distinctUntilChanged, scan, shareReplay, tap} from 'rxjs/operators'
 import shallowEqual from './shallowEqual'
 import {drivers, oldMap} from './applyDriver'
-import {cloneDeep} from 'lodash'
+import {cloneDeep,once} from 'lodash'
+import subState$ from './subState'
 
-export const componentFromStream = (ownState$, update, streamsToVdom) => {
+export const componentFromStream = (myId,ownState$, update, streamsToVdom) => {
   return class ComponentFromStream extends Component {
     constructor() {
       super()
@@ -27,6 +28,11 @@ export const componentFromStream = (ownState$, update, streamsToVdom) => {
           }
           this.state$.next(reducer)
         }
+      } else {
+        // 与global连接的组件状态送入subState$流
+        // 需注意在这里subscribe是为了避免在dive执行时
+        // 放在ownState$pipe中会造成多次next
+        this.state$.subscribe(state => subState$.next({ [myId]: state }))
       }
 
       this.state$.update = function (observable) {
@@ -46,7 +52,7 @@ export const componentFromStream = (ownState$, update, streamsToVdom) => {
         }
       })
       // Stream of vdom
-      this.vdom$ = from(streamsToVdom({
+      this.vdom$ = streamsToVdom({
         props$: this.props$.pipe(distinctUntilChanged(shallowEqual)),
         state$: this.state$,
         eventHandle: {
@@ -59,7 +65,7 @@ export const componentFromStream = (ownState$, update, streamsToVdom) => {
           },
         },
         ...drivers,
-      }))
+      })
     }
 
     state = { vdom: null }
@@ -78,17 +84,21 @@ export const componentFromStream = (ownState$, update, streamsToVdom) => {
       })
     })
 
-    // Stream of props
 
-
-    componentWillMount() {
-      // Subscribe to child prop changes so we know when to re-render
+    setSubscribe = once(() => {
+      console.log(myId)
       this.vdomSubscription = this.vdom$.subscribe({
         next: vdom => {
+          console.log(myId,'render')
           this.setState({ vdom })
         },
       })
+      // Subscribe to child prop changes so we know when to re-render
       this.propsEmitter.emit(this.props)
+    })
+
+    componentWillMount() {
+      this.setSubscribe()
     }
 
     componentWillReceiveProps(nextProps) {

@@ -1,7 +1,7 @@
 import {componentFromStream} from './componentFromStream'
 import {BehaviorSubject} from 'rxjs'
 import globalState$, {globalState} from './globalState'
-import {distinctUntilChanged, filter, map, share, tap} from 'rxjs/operators'
+import {distinctUntilChanged, filter, map, share, shareReplay, tap} from 'rxjs/operators'
 import {cloneDeep, isEqual, uniqueId} from 'lodash'
 import _setDevTool from './devTool'
 import _applyDrive from './applyDriver'
@@ -47,8 +47,6 @@ export default function dive({ lens, state: initState = {} }) {
         filter(state => state == globalState),
         map(lens.get),
         distinctUntilChanged(isEqual),
-        // 与global连接的组件状态送入subState$流
-        tap(state => subState$.next({ [myId]: state })),
     )
   } else if (typeof lens == 'string') {
     myId = lens
@@ -73,12 +71,11 @@ export default function dive({ lens, state: initState = {} }) {
         map(state => state[myId]),
         distinctUntilChanged(isEqual),
         // 与global连接的组件状态送入subState$流
-        tap(state => subState$.next({ [myId]: state })),
     )
   }
 
   return streamsToVdom => {
-    return componentFromStream(ownState$, update, streamsToVdom)
+    return componentFromStream(myId, ownState$, update, streamsToVdom)
   }
 }
 

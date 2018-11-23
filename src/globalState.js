@@ -14,7 +14,6 @@ const globalState$ = new Subject().pipe(
 export let globalState = {}
 export const devGlobalState$ = new ReplaySubject()
 globalState$.subscribe(state => {
-  // console.log('ok')
   devGlobalState$.next(state)
   if (process.env.NODE_ENV == 'development') {
     // console.log('global', state)

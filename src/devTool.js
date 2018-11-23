@@ -18,7 +18,7 @@ const Box = styled(ResizableBox)`
   left:0;
   z-index: 1000000;
   transition: all 0.1s linear;
-  transform:${props => props.show=='true' ? 'translateX(0)' : 'translateX(-100%)'};
+  transform:${props => props.show == 'true' ? 'translateX(0)' : 'translateX(-100%)'};
   .react-resizable-handle{
     bottom: 80px;
     right: 0;
@@ -121,38 +121,12 @@ class DevTool extends React.Component {
     show: true,
   }
 
-  componentDidMount() {
-    devGlobalState$.subscribe(global => {
-      return this.setState(state => ({ global: state.global.concat(global) }))
-    })
-    subState$.subscribe(subs => this.setState(state => ({ subs: state.subs.concat(subs) })))
-    actions$.pipe(
-        switchMap(({ state, nextState, id }) => {
-          if (state !== nextState) {
-            let difference = diff(state, nextState)
-            difference = omitBy(difference, isEmpty)
-            difference = omit(difference, 'unchanged')
-            let action = {}
-            Object.keys(difference).forEach(key => {
-              difference[key].forEach(prop => {
-                action[key] = action[key] || {}
-                action[key][prop] = nextState[prop]
-              })
-            })
-            return of(isEmpty(action) ? id + ' action but unchanged' : { [id]: action })
-          }
-          return EMPTY
-        }),
-    )
-        .subscribe(action => this.setState(state => ({ actions: state.actions.concat(action) })))
-  }
-
   select = key => {
     this.setState({ key })
   }
 
   render() {
-    const { show, key, subs, global, actions } = this.state
+    const { show, key } = this.state
     return <Box width={408}
                 height={window.screen.availHeight}
                 minConstraints={[408, window.screen.availHeight]}
@@ -175,98 +149,159 @@ class DevTool extends React.Component {
         <div onClick={() => this.setState({ show: false })} className={'left'}> {'<'} </div>
       </div>
       <div className={'content'}>
-        {
-          global && <div className={'zIndex'} style={{
-            width: key == 'global' ? null : 0,
-            height: key == 'global' ? null : 0,
-            padding: key == 'global' ? null : 0,
-            overflow: key == 'global' ? 'auto' : 'hidden',
-          }}>
-            {
-              global.map((item, index) => {
-                return <div key={index} className={'action_item'}>
-                  <JSONTree
-                      displayObjectSize={false}
-                      enableClipboard={false}
-                      key={index}
-                      displayDataTypes={false}
-                      collapsed
-                      name={'global-state'}
-                      src={item}
-                  />
-                </div>
-              })
-            }
-          </div>
-        }
-        {
-          subs && <div className={'zIndex'} style={{
-            width: key == 'subs' ? null : 0,
-            height: key == 'subs' ? null : 0,
-            padding: key == 'subs' ? null : 0,
-            overflow: key == 'subs' ? 'auto' : 'hidden',
-          }}>
-            {
-              subs.map((item, index) => {
-                return <div key={index} className={'action_item'}>
-                  <JSONTree
-                      displayObjectSize={false}
-                      enableClipboard={false}
-                      key={index}
-                      displayDataTypes={false}
-                      collapsed
-                      name={'subs-state'}
-                      src={item}
-                  />
-                </div>
-              })
-            }
-          </div>
-        }
-        {
-          actions &&
-          <div className={'zIndex'} style={{
-            width: key == 'actions' ? null : 0,
-            height: key == 'actions' ? null : 0,
-            padding: key == 'actions' ? null : 0,
-            overflow: key == 'actions' ? 'auto' : 'hidden',
-          }}>
-            {
-              actions.map((item, index) => {
-                return <div key={index} className={'action_item'}>
-                  {
-                    typeof item == 'string'
-                        ? item
-                        : Object.keys(item).map((name, ele) => (
-                            <React.Fragment key={index + '' + ele}>
-                              <span> {name}> </span>
-                              {
-                                Object.keys(item[name]).map(action => (
-                                    <React.Fragment key={index + '' + ele + action}>
-                                      <span>{action}: </span>
-                                      <JSONTree
-                                          displayObjectSize={false}
-                                          enableClipboard={false}
-                                          key={index + '' + ele + action}
-                                          displayDataTypes={false}
-                                          collapsed
-                                          name={false}
-                                          src={item[name][action]}
-                                      />
-                                    </React.Fragment>
-
-                                ))
-                              }
-                            </React.Fragment>
-                        ))
-                  }
-                </div>
-              })
-            }
-          </div>
-        }
+        <GlobalPanel active={key == 'global'}/>
+        <SubsPanel active={key == 'subs'}/>
+        <ActionsPanel active={key == 'actions'}/>
       </div>
     </Box>
+  }
+}
+
+function setActive(active) {
+  return {
+    width: active ? null : 0,
+    height: active ? null : 0,
+    padding: active ? null : 0,
+    overflow: active ? 'auto' : 'hidden',
+  }
+}
+
+class GlobalPanel extends React.PureComponent {
+  state = {
+    data: [],
+  }
+
+  componentDidMount() {
+    devGlobalState$.subscribe(global => {
+      return this.setState(state => ({ data: state.data.concat(global) }))
+    })
+  }
+
+  render() {
+    const { active } = this.props
+    const { data } = this.state
+    return (
+        <div className={'zIndex'} style={setActive(active)}>
+          {
+            data.map((item, index) => {
+              return <div key={index} className={'action_item'}>
+                <JSONTree
+                    displayObjectSize={false}
+                    enableClipboard={false}
+                    key={index}
+                    displayDataTypes={false}
+                    collapsed
+                    name={'global-state'}
+                    src={item}
+                />
+              </div>
+            })
+          }
+        </div>
+    )
+  }
+}
+
+class SubsPanel extends React.PureComponent {
+  state = {
+    data: [],
+  }
+
+  componentDidMount() {
+    subState$.subscribe(subs => this.setState(state => ({ data: state.data.concat(subs) })))
+  }
+
+  render() {
+    const { active } = this.props
+    const { data } = this.state
+    return (
+        <div className={'zIndex'} style={setActive(active)}>
+          {
+            data.map((item, index) => {
+              return <div key={index} className={'action_item'}>
+                <JSONTree
+                    displayObjectSize={false}
+                    enableClipboard={false}
+                    key={index}
+                    displayDataTypes={false}
+                    collapsed
+                    name={'subs-state'}
+                    src={item}
+                />
+              </div>
+            })
+          }
+        </div>
+    )
+  }
+}
+
+class ActionsPanel extends React.PureComponent {
+  state = {
+    data: [],
+  }
+
+  componentDidMount() {
+    actions$.pipe(
+        switchMap(({ state, nextState, id }) => {
+          if (state !== nextState) {
+            let difference = diff(state, nextState)
+            difference = omitBy(difference, isEmpty)
+            difference = omit(difference, 'unchanged')
+            let action = {}
+            Object.keys(difference).forEach(key => {
+              difference[key].forEach(prop => {
+                action[key] = action[key] || {}
+                action[key][prop] = nextState[prop]
+              })
+            })
+            return of(isEmpty(action) ? id + ' action but unchanged' : { [id]: action })
+          }
+          return EMPTY
+        }),
+    )
+        .subscribe(action => this.setState(state => ({ data: state.data.concat(action) })))
+  }
+
+  render() {
+    const { active } = this.props
+    const { data } = this.state
+    return (
+        <div className={'zIndex'} style={setActive(active)}>
+          {
+            data.map((item, index) => {
+              return <div key={index} className={'action_item'}>
+                {
+                  typeof item == 'string'
+                      ? item
+                      : Object.keys(item).map((name, ele) => (
+                          <React.Fragment key={index + '' + ele}>
+                            <span> {name}> </span>
+                            {
+                              Object.keys(item[name]).map(action => (
+                                  <React.Fragment key={index + '' + ele + action}>
+                                    <span>{action}: </span>
+                                    <JSONTree
+                                        displayObjectSize={false}
+                                        enableClipboard={false}
+                                        key={index + '' + ele + action}
+                                        displayDataTypes={false}
+                                        collapsed
+                                        name={false}
+                                        src={item[name][action]}
+                                    />
+                                  </React.Fragment>
+
+                              ))
+                            }
+                          </React.Fragment>
+                      ))
+                }
+              </div>
+            })
+          }
+        </div>
+    )
   }
 }
 
