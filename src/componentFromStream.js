@@ -1,26 +1,89 @@
-import {Component} from 'react'
+import React, {Component, useEffect, useMemo, useState} from 'react'
 import {createChangeEmitter} from 'change-emitter'
-import {from, Subject, Observable} from 'rxjs'
-import {distinctUntilChanged, scan, shareReplay, tap} from 'rxjs/operators'
+import {from, Subject, Observable, EMPTY, of, BehaviorSubject, merge} from 'rxjs'
+import {
+  debounce,
+  distinctUntilChanged,
+  scan,
+  share,
+  shareReplay,
+  skip,
+  switchMap, takeWhile,
+  tap,
+  withLatestFrom,
+} from 'rxjs/operators'
 import shallowEqual from './shallowEqual'
 import {drivers, oldMap} from './applyDriver'
-import {cloneDeep,once} from 'lodash'
+import {cloneDeep, isEqual, once, uniqueId} from 'lodash'
 import subState$ from './subState'
 
-export const componentFromStream = (myId,ownState$, update, streamsToVdom) => {
+export const componentFromStream = ({ myId, state$, updateGlobal, initState, update, streamsToVdom, type }) => {
   return class ComponentFromStream extends Component {
     constructor() {
       super()
       this.driversSubscription = []
       this.transfer = {}
-      this.state$ = ownState$
+      this.state$ = state$
+      this.update = update
+      this.updateGlobal = updateGlobal
+      this.state = { vdom: null }
+      this.eventMap = {}
+      this.active = true
+
+      this.propsEmitter = createChangeEmitter()
+
+
+      this.props$ = Observable.create(observer => {
+        this.propsEmitter.listen(props => {
+          if (props) {
+            observer.next(props)
+          } else {
+            observer.complete()
+          }
+        })
+      })
+
       // 没有lens的组件，不与global连接，自己维护状态
-      if (typeof ownState$ == 'function') {
-        this.state$ = ownState$().pipe(
+      if (type == 'empty-lens') {
+        this.state$ = new BehaviorSubject(_ => initState).pipe(
             scan((state, reducer) => reducer(state), {}),
             distinctUntilChanged(),
         )
-        update = (ownReducer) => {
+        this.update = (ownReducer) => {
+          if (ownReducer == null) return
+          let reducer = ownReducer
+          if (typeof ownReducer !== 'function') {
+            reducer = state => Object.assign({}, state, ownReducer)
+          }
+          this.state$.next(reducer)
+        }
+      } else if (type == 'only-get-lens') {
+        const transfer$ = new BehaviorSubject(initState)
+        const globalState$ = state$(transfer$)
+        const ownState$ = new Subject().pipe(
+            scan((state, reducer) => reducer(state), initState),
+            withLatestFrom(globalState$, (ownState, state) => {
+              return Object.assign({}, state, ownState)
+            }),
+            tap(state => transfer$.next(state)),
+        )
+        this.update = (ownReducer) => {
+          // console.log(ip)
+          if (ownReducer == null) return
+          let reducer = ownReducer
+          if (typeof ownReducer !== 'function') {
+            reducer = state => Object.assign({}, state, ownReducer)
+          }
+          ownState$.next(reducer)
+        }
+        this.state$ = merge(globalState$, ownState$).pipe(distinctUntilChanged(shallowEqual))
+      } else if (type == 'only-set-lens') {
+        this.state$ = new BehaviorSubject(_ => initState).pipe(
+            scan((state, reducer) => reducer(state), {}),
+            distinctUntilChanged(),
+            tap(this.updateGlobal),
+        )
+        this.update = (ownReducer) => {
           if (ownReducer == null) return
           let reducer = ownReducer
           if (typeof ownReducer !== 'function') {
@@ -35,22 +98,14 @@ export const componentFromStream = (myId,ownState$, update, streamsToVdom) => {
         this.state$.subscribe(state => subState$.next({ [myId]: state }))
       }
 
-      this.state$.update = function (observable) {
-        this.reducerSubscription = observable.subscribe(reducer => {
-          update(reducer)
-        })
+      this.state$ = this.state$.pipe(
+          takeWhile(() => this.active),
+      )
+      this.state$.update = (reducer$) => {
+        this.reducerSubscription = reducer$
+            .subscribe(reducer => this.update(reducer))
       }
 
-      Object.keys(drivers).forEach(key => {
-        this.transfer[key] = new Subject()
-        drivers[key].update = (obs) => {
-          this.driversSubscription.push(
-              obs.subscribe(this.transfer[key]),
-          )
-          oldMap[key](this.transfer[key])
-          drivers[key].update = oldMap[key]
-        }
-      })
       // Stream of vdom
       this.vdom$ = streamsToVdom({
         props$: this.props$.pipe(distinctUntilChanged(shallowEqual)),
@@ -66,39 +121,27 @@ export const componentFromStream = (myId,ownState$, update, streamsToVdom) => {
         },
         ...drivers,
       })
-    }
-
-    state = { vdom: null }
-    eventMap = {}
-
-    propsEmitter = createChangeEmitter()
-
-
-    props$ = Observable.create(observer => {
-      this.propsEmitter.listen(props => {
-        if (props) {
-          observer.next(props)
-        } else {
-          observer.complete()
+      Object.keys(drivers).forEach(key => {
+        this.transfer[key] = new Subject()
+        drivers[key].update = (obs) => {
+          this.driversSubscription.push(
+              obs.subscribe(this.transfer[key]),
+          )
+          oldMap[key](this.transfer[key])
+          drivers[key].update = oldMap[key]
         }
       })
-    })
 
+    }
 
-    setSubscribe = once(() => {
-      console.log(myId)
+    componentDidMount() {
       this.vdomSubscription = this.vdom$.subscribe({
         next: vdom => {
-          console.log(myId,'render')
           this.setState({ vdom })
         },
       })
       // Subscribe to child prop changes so we know when to re-render
       this.propsEmitter.emit(this.props)
-    })
-
-    componentWillMount() {
-      this.setSubscribe()
     }
 
     componentWillReceiveProps(nextProps) {
@@ -111,10 +154,12 @@ export const componentFromStream = (myId,ownState$, update, streamsToVdom) => {
     }
 
     componentWillUnmount() {
+      this.active = false
       // Call without arguments to complete stream
       this.propsEmitter.emit()
       // Clean-up subscription before un-mounting
       this.vdomSubscription.unsubscribe()
+      // console.log('unount', myId)
       this.reducerSubscription && this.reducerSubscription.unsubscribe()
       this.driversSubscription.forEach(sub => sub.unsubscribe())
     }

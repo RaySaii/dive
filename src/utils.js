@@ -1,6 +1,9 @@
 import React from 'react'
 import {get, isEmpty} from 'lodash'
 import {tap} from 'rxjs/operators'
+import {IHttpComponent} from './HttpComponent'
+import _HTTP,{_fromHttp,_fromPureHttp} from './http';
+import _shallowEqual from './shallowEqual';
 
 /**
  * @return {boolean}
