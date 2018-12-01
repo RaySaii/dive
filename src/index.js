@@ -1,6 +1,6 @@
 import {componentFromStream} from './componentFromStream'
 import {BehaviorSubject} from 'rxjs'
-import globalState$, {globalState} from './globalState'
+import globalState$, {globalState, actions$} from './globalState'
 import {distinctUntilChanged, filter, map, share, shareReplay, tap, withLatestFrom} from 'rxjs/operators'
 import {cloneDeep, isEmpty, isEqual, pick, uniqueId} from 'lodash'
 import _setDevTool from './devTool'
@@ -28,7 +28,7 @@ export default function dive({ lens = {}, state: initState = {} }) {
     } else if (!lens.get && lens.set) {
       const updateGlobal = (ownState) => {
         let reducer = state => lens.set(state, ownState)
-        globalState$.next([reducer, 'only-set-lens'])
+        globalState$.next(reducer)
       }
       return streamsToVdom => componentFromStream({
         updateGlobal,
@@ -56,21 +56,29 @@ export default function dive({ lens = {}, state: initState = {} }) {
           reducer = state => {
             const prevState = lens.get(state)
             const nextState = ownReducer(prevState)
-            if (nextState == prevState) return state// 当下一个reducer函数返回值仍为state时放弃更新
-            return lens.set(state, nextState)
+            // 当下一个reducer函数返回值仍为state时放弃更新
+            if (nextState == prevState) {
+              actions$.next({ id: myId, unChanged: true })
+              return state
+            }
+            const nextGlobalState = lens.set(state, nextState)
+            actions$.next({ id: myId, state, nextState: nextGlobalState })
+            return nextGlobalState
           }
         } else {
           // reducer为对象与setState同
-          reducer = state => lens.set(state, Object.assign({}, lens.get(state), ownReducer))
+          reducer = state => {
+            const nextGlobalState = lens.set(state, Object.assign({}, lens.get(state), ownReducer))
+            actions$.next({ id: myId, state, nextState: nextGlobalState })
+            return nextGlobalState
+          }
         }
-        globalState$.next([reducer, myId])
+        globalState$.next(reducer)
       }
-      globalState$.next([state => lens.set(state, handledInit), myId])
+      update(handledInit)
       state$ = globalState$.pipe(
-          // 可能存在时序的问题，将不是当前状态过滤掉
-          // filter(state => state == globalState),
           map(lens.get),
-          distinctUntilChanged(isEqual),
+          distinctUntilChanged(shallowEqual),
       )
     }
   } else if (typeof lens == 'string') {
@@ -82,20 +90,27 @@ export default function dive({ lens = {}, state: initState = {} }) {
         reducer = state => {
           const prevState = state[myId]
           const nextState = ownReducer(prevState)
-          if (nextState == prevState) return state
-          return ({ ...state, [myId]: nextState })
+          if (nextState == prevState) {
+            actions$.next({ id: myId, unChanged: true })
+            return state
+          }
+          const nextGlobalState = { ...state, [myId]: nextState }
+          actions$.next({ id: myId, state, nextState: nextGlobalState })
+          return nextGlobalState
         }
       } else {
-        reducer = state => ({ ...state, [myId]: Object.assign({}, state[myId], ownReducer) })
+        reducer = state => {
+          const nextGlobalState = { ...state, [myId]: Object.assign({}, state[myId], ownReducer) }
+          actions$.next({ id: myId, state, nextState: nextGlobalState })
+          return nextGlobalState
+        }
       }
-      globalState$.next([reducer, myId])
+      globalState$.next(reducer)
     }
-    globalState$.next([state => ({ ...state, [myId]: initState }), myId])
+    update(initState)
     state$ = globalState$.pipe(
-        // filter(state => state == globalState),
         map(state => state[myId]),
-        distinctUntilChanged(isEqual),
-        // 与global连接的组件状态送入subState$流
+        distinctUntilChanged(shallowEqual),
     )
   }
 

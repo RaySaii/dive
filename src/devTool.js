@@ -7,26 +7,29 @@ import subState$, {change$} from './subState'
 import JSONTree from 'react-json-view'
 import {isEmpty, omit, omitBy} from 'lodash'
 import {ResizableBox} from 'react-resizable'
-import 'react-resizable/css/styles.css'
 import diff from 'shallow-diff'
 import {EMPTY, of} from 'rxjs'
 
-const Box = styled(ResizableBox)`
+const Box = styled.div`
   background: #f3f5f7;
+  height: 100%;
   position: fixed;
   top:0;
   left:0;
   z-index: 1000000;
   transition: all 0.1s linear;
+    box-shadow: 1px 0 20px rgba(0, 0, 0, 0.1);
   transform:${props => props.show == 'true' ? 'translateX(0)' : 'translateX(-100%)'};
-  .react-resizable-handle{
-    bottom: 80px;
-    right: 0;
-    cursor:e-resize;
-    background-size: 10px;
-    background-color: #6ec0e6;
+  .resize_area{
+    width: 17px;
+    height: 100%;
+    opacity: 0;
+    position: absolute;
+    top:0;
+    right:0;
+    z-index: 100;
+    cursor: col-resize;
   }
-  box-shadow: 1px 0 20px rgba(0, 0, 0, 0.1);
   .tab_bar{
     background: white;
     height: 55px;
@@ -69,14 +72,13 @@ const Box = styled(ResizableBox)`
     position: relative;
     height:calc(100% - 55px);
     .zIndex{
-    width:100%;
      padding: 20px;
-     overflow-y: auto;
-     height: calc(100% - 80px);
+     overflow: auto;
+     height: calc(100% - 30px);
      background: #f3f5f7;
     }
     .action_item{
-    overflow-x: auto;
+    overflow-x: scroll;
     display: flex;
     align-items: flex-start;
     justify-content: flex-start;
@@ -119,19 +121,40 @@ class DevTool extends React.Component {
     actions: [],
     ignore: [],
     show: true,
+    width: 408,
   }
+  startWidth = 408
 
   select = key => {
     this.setState({ key })
   }
 
+  onMouseDown = (e) => {
+    this.down = true
+    this.startX = e.clientX
+  }
+
+  componentDidMount() {
+    document.body.onmousemove = (e) => {
+      if (this.down) {
+        const moveX = e.clientX - this.startX
+        if (this.startWidth + moveX >= 408) {
+          this.setState({ width: this.startWidth + moveX })
+        }
+      }
+    }
+    document.body.onmouseup = () => {
+      this.down = false
+      this.startWidth = this.state.width
+    }
+  }
+
   render() {
-    const { show, key } = this.state
-    return <Box width={408}
-                height={window.screen.availHeight}
-                minConstraints={[408, window.screen.availHeight]}
-                show={show.toString()}
-                axis={'x'}>
+    const { show, key, width } = this.state
+
+    return <Box style={{ width }} show={show.toString()}>
+      <div onMouseDown={this.onMouseDown}
+           className={'resize_area'}/>
       <div className={'tab_bar'}>
         <div className={'bar'} onClick={() => this.select('global')}>
           Global
@@ -239,65 +262,52 @@ class SubsPanel extends React.PureComponent {
 class ActionsPanel extends React.PureComponent {
   state = {
     data: [],
+    ignore: false,
   }
 
   componentDidMount() {
-    actions$.pipe(
-        switchMap(({ state, nextState, id }) => {
-          if (state !== nextState) {
-            let difference = diff(state, nextState)
-            difference = omitBy(difference, isEmpty)
-            difference = omit(difference, 'unchanged')
-            let action = {}
-            Object.keys(difference).forEach(key => {
-              difference[key].forEach(prop => {
-                action[key] = action[key] || {}
-                action[key][prop] = nextState[prop]
-              })
-            })
-            return of(isEmpty(action) ? id + ' action but unchanged' : { [id]: action })
-          }
-          return EMPTY
-        }),
-    )
-        .subscribe(action => this.setState(state => ({ data: state.data.concat(action) })))
+    actions$.subscribe(action => this.setState(state => ({ data: state.data.concat(action) })))
   }
 
   render() {
     const { active } = this.props
-    const { data } = this.state
+    const { data, ignore } = this.state
     return (
         <div className={'zIndex'} style={setActive(active)}>
+          <div>
+            <input onChange={e => this.setState({ ignore: e.target.checked })} type={'checkbox'}
+                   id={'ignore unchanged'}
+                   name={'ignore unchanged'}/>
+            <label for='ignore unchanged'> ignore unchanged</label>
+          </div>
           {
             data.map((item, index) => {
-              return <div key={index} className={'action_item'}>
-                {
-                  typeof item == 'string'
-                      ? item
-                      : Object.keys(item).map((name, ele) => (
-                          <React.Fragment key={index + '' + ele}>
-                            <span> {name}> </span>
-                            {
-                              Object.keys(item[name]).map(action => (
-                                  <React.Fragment key={index + '' + ele + action}>
-                                    <span>{action}: </span>
-                                    <JSONTree
-                                        displayObjectSize={false}
-                                        enableClipboard={false}
-                                        key={index + '' + ele + action}
-                                        displayDataTypes={false}
-                                        collapsed
-                                        name={false}
-                                        src={item[name][action]}
-                                    />
-                                  </React.Fragment>
+              return typeof item == 'string'
+                  ? (ignore ? null : <div key={index} className={'action_item'}>{item}</div>)
+                  : <div key={index} className={'action_item'}>
+                    {Object.keys(item).map((name, ele) => (
+                        <React.Fragment key={index + '' + ele}>
+                          <span> {name}> </span>
+                          {
+                            Object.keys(item[name]).map(action => (
+                                <React.Fragment key={index + '' + ele + action}>
+                                  <span>{action}: </span>
+                                  <JSONTree
+                                      displayObjectSize={false}
+                                      enableClipboard={false}
+                                      key={index + '' + ele + action}
+                                      displayDataTypes={false}
+                                      collapsed
+                                      name={false}
+                                      src={item[name][action]}
+                                  />
+                                </React.Fragment>
 
-                              ))
-                            }
-                          </React.Fragment>
-                      ))
-                }
-              </div>
+                            ))
+                          }
+                        </React.Fragment>
+                    ))}
+                  </div>
             })
           }
         </div>

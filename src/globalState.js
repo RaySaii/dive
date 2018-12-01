@@ -1,22 +1,34 @@
 import {ReplaySubject, Subject} from 'rxjs'
-import {scan, shareReplay, distinctUntilChanged} from 'rxjs/operators'
+import {scan, shareReplay, distinctUntilChanged, map} from 'rxjs/operators'
 import {isEmpty, omit, omitBy} from 'lodash'
+import diff from 'shallow-diff'
 
 
 class State {
   constructor() {
     this._globalState = {}
     this._globalState$ = new Subject().pipe(
-        scan((state, [reducer, id]) => {
-          const nextState = reducer(state)
-          this._actions$.next({ state, nextState, id })
-          return nextState
-        }, {}),
+        scan((state, reducer) => reducer(state), {}),
         distinctUntilChanged(),
         shareReplay(1),
     )
     this._devGlobalState$ = new ReplaySubject()
-    this._actions$ = new ReplaySubject()
+    this._actions$ = new ReplaySubject().pipe(
+        map(({ state, nextState, id, unChanged }) => {
+          if (unChanged) return id + ' action but unchanged'
+          let difference = diff(state, nextState)
+          difference = omitBy(difference, isEmpty)
+          difference = omit(difference, 'unchanged')
+          let action = {}
+          Object.keys(difference).forEach(key => {
+            difference[key].forEach(prop => {
+              action[key] = action[key] || {}
+              action[key][prop] = nextState[prop]
+            })
+          })
+          return isEmpty(action) ? id + ' action but unchanged' : { [id]: action }
+        }),
+    )
     this._globalState$.subscribe(state => {
       this._devGlobalState$.next(state)
       if (process.env.NODE_ENV == 'development') {
