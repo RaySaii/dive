@@ -8,7 +8,7 @@ class IHTTP {
 
     this.fromHttp = (promise) => {
       const httpWithErrorHandle = merge(
-          of({ status: 'pending', data: undefined }),
+          of({ status: 'pending', data: {} }),
           from(promise)
               .pipe(
                   catchError(err => {

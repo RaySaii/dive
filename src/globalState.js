@@ -1,7 +1,8 @@
 import {ReplaySubject, Subject} from 'rxjs'
-import {scan, shareReplay, distinctUntilChanged, map} from 'rxjs/operators'
+import {scan, shareReplay, distinctUntilChanged, map, share} from 'rxjs/operators'
 import {isEmpty, omit, omitBy} from 'lodash'
 import diff from 'shallow-diff'
+import {shallowEqual} from './index'
 
 
 class State {

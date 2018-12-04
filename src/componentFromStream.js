@@ -3,7 +3,7 @@ import {createChangeEmitter} from 'change-emitter'
 import {from, Subject, Observable, EMPTY, of, BehaviorSubject, merge} from 'rxjs'
 import {
   debounce,
-  distinctUntilChanged,
+  distinctUntilChanged, filter,
   scan,
   share,
   shareReplay,
@@ -14,7 +14,7 @@ import {
 } from 'rxjs/operators'
 import shallowEqual from './shallowEqual'
 import {drivers, oldMap} from './applyDriver'
-import {cloneDeep, isEqual, once, uniqueId} from 'lodash'
+import {cloneDeep, isEmpty, isEqual, once, uniqueId} from 'lodash'
 import subState$ from './subState'
 import {actions$} from './globalState'
 
@@ -54,6 +54,7 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
       this.state = { vdom: null }
       this.eventMap = {}
       this.active = true
+      this.curState = {}
 
       this.propsEmitter = createChangeEmitter()
 
@@ -73,7 +74,13 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
         this.myId = uniqueId('dive-isolate')
         this.state$ = new BehaviorSubject(_ => initState).pipe(
             scan((state, reducer) => reducer(state), {}),
-            distinctUntilChanged(),
+            distinctUntilChanged(shallowEqual),
+            tap(state => Object.assign(this.curState, state)),
+            shareReplay(1),
+            filter(state => {
+              if (isEmpty(this.curState)) return true
+              return shallowEqual(state, this.curState)
+            }),
         )
         this.update = (ownReducer) => {
           let reducer = getReducer(ownReducer, this.myId)
@@ -91,14 +98,23 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
               return Object.assign({}, state, ownState)
             }),
             distinctUntilChanged(shallowEqual),
-            tap(state => transfer$.next(state)),
+            tap(transfer$),
+            share(),
         )
         this.update = (ownReducer) => {
           let reducer = getReducer(ownReducer, this.myId)
           ownState$.next(reducer)
         }
-        this.state$ = merge(globalState$, ownState$).pipe(
-            distinctUntilChanged(isEqual),
+        this.state$ = merge(
+            globalState$.pipe(tap(state => Object.assign(this.curState, state))),
+            ownState$.pipe(tap(state => Object.assign(this.curState, state))),
+        ).pipe(
+            distinctUntilChanged(shallowEqual),
+            shareReplay(1),
+            filter(state => {
+              if (isEmpty(this.curState)) return true
+              return shallowEqual(state, this.curState)
+            }),
         )
       } else if (type == 'only-set-lens') {
         this.myId = uniqueId('dive-isolate')
@@ -114,13 +130,14 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
       }
       this.state$ = this.state$.pipe(
           takeWhile(() => this.active),
-          shareReplay(1),
       )
       this.state$.update = (reducer$) => {
         this.reducerSubscription = reducer$
             .subscribe(reducer => this.update(reducer))
       }
-      this.state$.subscribe(state => subState$.next({ [this.myId]: state }))
+      this.subSubscription = this.state$.subscribe(state => {
+        return subState$.next({ [this.myId]: state })
+      })
       // Stream of vdom
       this.vdom$ = streamsToVdom({
         props$: this.props$.pipe(distinctUntilChanged(shallowEqual)),
@@ -128,7 +145,7 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
         eventHandle: {
           event: (eventName) => {
             this.eventMap[eventName] = this.eventMap[eventName] || new Subject()
-            return this.eventMap[eventName]
+            return this.eventMap[eventName].pipe(shareReplay(1))
           },
           handle: (eventName) => {
             return (...args) => this.eventMap[eventName].next(args.length > 1 ? args : args[0])
@@ -169,12 +186,17 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
     }
 
     componentWillUnmount() {
+      console.log('unmount')
       this.active = false
       // Call without arguments to complete stream
       this.propsEmitter.emit()
       // Clean-up subscription before un-mounting
       this.vdomSubscription.unsubscribe()
+      Object.keys(this.eventMap).forEach(key => {
+        this.eventMap[key].complete()
+      })
       // console.log('unount', myId)
+      this.subSubscription.unsubscribe()
       this.reducerSubscription && this.reducerSubscription.unsubscribe()
       this.driversSubscription.forEach(sub => sub.unsubscribe())
     }

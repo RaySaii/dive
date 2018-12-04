@@ -5,7 +5,6 @@ import {distinctUntilChanged, filter, map, share, shareReplay, tap, withLatestFr
 import {cloneDeep, isEmpty, isEqual, pick, uniqueId} from 'lodash'
 import _setDevTool from './devTool'
 import _applyDrive from './applyDriver'
-import subState$ from './subState'
 import {IHttpComponent} from './HttpComponent'
 import _shallowEqual from './shallowEqual'
 import _HTTP, {_fromHttp, _fromPureHttp} from './http'

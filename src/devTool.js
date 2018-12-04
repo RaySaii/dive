@@ -79,9 +79,6 @@ const Box = styled.div`
     }
     .action_item{
     overflow-x: scroll;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
     border: 1px solid #d8d8d8;
     background: white;
     }
@@ -120,7 +117,7 @@ class DevTool extends React.Component {
     subs: [],
     actions: [],
     ignore: [],
-    show: true,
+    show: false,
     width: 408,
   }
   startWidth = 408
@@ -278,7 +275,7 @@ class ActionsPanel extends React.PureComponent {
             <input onChange={e => this.setState({ ignore: e.target.checked })} type={'checkbox'}
                    id={'ignore unchanged'}
                    name={'ignore unchanged'}/>
-            <label for='ignore unchanged'> ignore unchanged</label>
+            <label htmlFor={'ignore unchanged'}> ignore unchanged</label>
           </div>
           {
             data.map((item, index) => {
