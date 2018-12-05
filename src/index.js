@@ -76,6 +76,10 @@ export default function dive({ lens = {}, state: initState = {} }) {
       }
       update(handledInit)
       state$ = globalState$.pipe(
+          filter(state => {
+            if (isEmpty(globalState)) return true
+            return shallowEqual(state, globalState)
+          }),
           map(lens.get),
           distinctUntilChanged(shallowEqual),
       )
@@ -108,6 +112,10 @@ export default function dive({ lens = {}, state: initState = {} }) {
     }
     update(initState)
     state$ = globalState$.pipe(
+        filter(state => {
+          if (isEmpty(globalState)) return true
+          return shallowEqual(state, globalState)
+        }),
         map(state => state[myId]),
         distinctUntilChanged(shallowEqual),
     )

@@ -35,7 +35,7 @@ class State {
       if (process.env.NODE_ENV == 'development') {
         // console.log('global', state)
       }
-      this._globalState = state
+      this._globalState = Object.assign(this._globalState,state)
       // console.log('global', state)
     })
   }

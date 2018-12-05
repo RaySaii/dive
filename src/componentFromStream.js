@@ -17,6 +17,7 @@ import {drivers, oldMap} from './applyDriver'
 import {cloneDeep, isEmpty, isEqual, once, uniqueId} from 'lodash'
 import subState$ from './subState'
 import {actions$} from './globalState'
+import diff from 'shallow-diff'
 
 function getReducer(ownReducer, id) {
   if (ownReducer == null) return
@@ -140,7 +141,13 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
       })
       // Stream of vdom
       this.vdom$ = streamsToVdom({
-        props$: this.props$.pipe(distinctUntilChanged(shallowEqual)),
+        props$: this.props$.pipe(
+            distinctUntilChanged(shallowEqual),
+            // scan((prev, props) => {
+            //   console.log(diff(prev, props))
+            //   return props
+            // })
+        ),
         state$: this.state$,
         eventHandle: {
           event: (eventName) => {
@@ -186,7 +193,7 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
     }
 
     componentWillUnmount() {
-      console.log('unmount')
+      // console.log('unmount')
       this.active = false
       // Call without arguments to complete stream
       this.propsEmitter.emit()
