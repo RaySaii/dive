@@ -47,8 +47,8 @@ export default function dive({ lens = {}, state: initState = {} }) {
       })
     } else {
       myId = uniqueId('dive')
-      const handledInit = Object.assign(initState, lens.get(globalState))
-      update = (ownReducer) => {
+      // const handledInit = Object.assign(initState, lens.get(globalState))
+      update = (ownReducer, init = false) => {
         if (ownReducer == null) return  // 当下一个reducer为null时放弃更新
         let reducer = null
         if (typeof ownReducer == 'function') {
@@ -67,14 +67,14 @@ export default function dive({ lens = {}, state: initState = {} }) {
         } else {
           // reducer为对象与setState同
           reducer = state => {
-            const nextGlobalState = lens.set(state, Object.assign({}, lens.get(state), ownReducer))
+            const nextGlobalState = lens.set(state, Object.assign({}, init ? {} : lens.get(state), ownReducer))
             actions$.next({ id: myId, state, nextState: nextGlobalState })
             return nextGlobalState
           }
         }
         globalState$.next(reducer)
       }
-      update(handledInit)
+      update(initState, true)
       state$ = globalState$.pipe(
           filter(state => {
             if (isEmpty(globalState)) return true
@@ -86,7 +86,7 @@ export default function dive({ lens = {}, state: initState = {} }) {
     }
   } else if (typeof lens == 'string') {
     myId = lens
-    update = (ownReducer) => {
+    update = (ownReducer, init = false) => {
       if (ownReducer == null) return
       let reducer = null
       if (typeof ownReducer == 'function') {
@@ -103,14 +103,14 @@ export default function dive({ lens = {}, state: initState = {} }) {
         }
       } else {
         reducer = state => {
-          const nextGlobalState = { ...state, [myId]: Object.assign({}, state[myId], ownReducer) }
+          const nextGlobalState = { ...state, [myId]: Object.assign({}, init ? {} : state[myId], ownReducer) }
           actions$.next({ id: myId, state, nextState: nextGlobalState })
           return nextGlobalState
         }
       }
       globalState$.next(reducer)
     }
-    update(initState)
+    update(initState, true)
     state$ = globalState$.pipe(
         filter(state => {
           if (isEmpty(globalState)) return true
