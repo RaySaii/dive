@@ -37,7 +37,7 @@ export default function dive({ lens = {}, state: initState = {} }) {
       })
     } else if (!lens.set && lens.get) {
       state$ = (ownState$) => globalState$.pipe(
-          withLatestFrom(ownState$, (state, ownState) => lens.get(state, ownState)),
+          withLatestFrom(ownState$, (state, ownState) => lens.get(state, ownState || {})),
       )
       return streamsToVdom => componentFromStream({
         state$,

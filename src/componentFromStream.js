@@ -95,9 +95,7 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
         )
         const ownState$ = new Subject().pipe(
             scan((state, reducer) => reducer(state), initState),
-            withLatestFrom(globalState$, (ownState, state) => {
-              return Object.assign({}, state, ownState)
-            }),
+            withLatestFrom(globalState$, (ownState, state) => Object.assign({}, state, ownState)),
             distinctUntilChanged(shallowEqual),
             tap(transfer$),
             share(),
