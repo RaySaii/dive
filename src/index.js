@@ -18,10 +18,10 @@ export default function dive({ lens = {}, state: initState = {} }) {
   if (typeof lens == 'object') {
     lens = pick(lens, 'get', 'set')
     if (isEmpty(lens)) {
-      return streamsToVdom => componentFromStream({
+      return streamsToSinks => componentFromStream({
         myId,
         initState,
-        streamsToVdom,
+        streamsToSinks,
         type: 'empty-lens',
       })
     } else if (!lens.get && lens.set) {
@@ -29,20 +29,20 @@ export default function dive({ lens = {}, state: initState = {} }) {
         let reducer = state => lens.set(state, ownState)
         globalState$.next(reducer)
       }
-      return streamsToVdom => componentFromStream({
+      return streamsToSinks => componentFromStream({
         updateGlobal,
         initState,
-        streamsToVdom,
+        streamsToSinks,
         type: 'only-set-lens',
       })
     } else if (!lens.set && lens.get) {
       state$ = (ownState$) => globalState$.pipe(
           withLatestFrom(ownState$, (state, ownState) => lens.get(state, ownState || {})),
       )
-      return streamsToVdom => componentFromStream({
+      return streamsToSinks => componentFromStream({
         state$,
         initState,
-        streamsToVdom,
+        streamsToSinks,
         type: 'only-get-lens',
       })
     } else {
@@ -121,7 +121,7 @@ export default function dive({ lens = {}, state: initState = {} }) {
     )
   }
 
-  return streamsToVdom => componentFromStream({ myId, state$, update, streamsToVdom })
+  return streamsToSinks => componentFromStream({ myId, state$, update, streamsToSinks })
 }
 
 export const applyDriver = _applyDrive

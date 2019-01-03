@@ -1,11 +1,12 @@
-export let drivers = {}
+import {Subject} from 'rxjs'
 
-export default function _applyDriver(obj) {
-  drivers = obj
-  Object.keys(drivers).forEach(key => {
-    oldMap[key] = drivers[key].update
+export let driverIn = {}
+export let driverOut = {}
+
+export default function _applyDriver(applyDrivers) {
+  Object.keys(applyDrivers).forEach(key => {
+    driverIn[key] = new Subject()
+    driverOut[key] = applyDrivers[key](driverIn[key])
   })
 }
-
-export const oldMap = {}
 

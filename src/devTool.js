@@ -9,6 +9,7 @@ import {isEmpty, omit, omitBy} from 'lodash'
 import {ResizableBox} from 'react-resizable'
 import diff from 'shallow-diff'
 import {EMPTY, of} from 'rxjs'
+import shallowEqual from './shallowEqual'
 
 const Box = styled.div`
   background: #f3f5f7;
@@ -18,8 +19,9 @@ const Box = styled.div`
   left:0;
   z-index: 1000000;
   transition: all 0.1s linear;
-    box-shadow: 1px 0 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 1px 0 20px rgba(0, 0, 0, 0.1);
   transform:${props => props.show == 'true' ? 'translateX(0)' : 'translateX(-100%)'};
+  font-size: 13px !important;
   .resize_area{
     width: 17px;
     height: 100%;
@@ -39,6 +41,7 @@ const Box = styled.div`
           border-bottom: 1px solid #d8d8d8;
           position: relative;
     .bar{
+    box-sizing: border-box;
       position: relative;
       width: 100px;
       height: 100%;
@@ -72,15 +75,21 @@ const Box = styled.div`
     position: relative;
     height:calc(100% - 55px);
     .zIndex{
+        box-sizing: border-box;
+
      padding: 20px;
      overflow: auto;
      height: calc(100% - 30px);
      background: #f3f5f7;
     }
     .action_item{
+    min-width: 100%;
     overflow-x: scroll;
     border: 1px solid #d8d8d8;
     background: white;
+    .action{
+        display: flex;
+    }
     }
   }
 `
@@ -131,6 +140,11 @@ class DevTool extends React.Component {
     this.startX = e.clientX
   }
 
+  shouldComponentUpdate(_, nextState) {
+    if (this.state.show) return true
+    return this.state.show != nextState.show
+  }
+
   componentDidMount() {
     document.body.onmousemove = (e) => {
       if (this.down) {
@@ -169,9 +183,9 @@ class DevTool extends React.Component {
         <div onClick={() => this.setState({ show: false })} className={'left'}> {'<'} </div>
       </div>
       <div className={'content'}>
-        <GlobalPanel active={key == 'global'}/>
-        <SubsPanel active={key == 'subs'}/>
-        <ActionsPanel active={key == 'actions'}/>
+        <GlobalPanel active={key == 'global' && show}/>
+        <SubsPanel active={key == 'subs' && show}/>
+        <ActionsPanel active={key == 'actions' && show}/>
       </div>
     </Box>
   }
@@ -179,16 +193,23 @@ class DevTool extends React.Component {
 
 function setActive(active) {
   return {
-    width: active ? null : 0,
+    width: active ? '100%' : 0,
     height: active ? null : 0,
     padding: active ? null : 0,
     overflow: active ? 'auto' : 'hidden',
   }
 }
 
-class GlobalPanel extends React.PureComponent {
+class GlobalPanel extends React.Component {
   state = {
     data: [],
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    if (this.props.active) {
+      return true
+    }
+    return this.props.active !== nextProps.active
   }
 
   componentDidMount() {
@@ -222,9 +243,16 @@ class GlobalPanel extends React.PureComponent {
   }
 }
 
-class SubsPanel extends React.PureComponent {
+class SubsPanel extends React.Component {
   state = {
     data: [],
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    if (this.props.active) {
+      return true
+    }
+    return this.props.active !== nextProps.active
   }
 
   componentDidMount() {
@@ -256,10 +284,17 @@ class SubsPanel extends React.PureComponent {
   }
 }
 
-class ActionsPanel extends React.PureComponent {
+class ActionsPanel extends React.Component {
   state = {
     data: [],
     ignore: false,
+  }
+
+  shouldComponentUpdate(nextProps, nextState) {
+    if (this.props.active) {
+      return true
+    }
+    return this.props.active !== nextProps.active
   }
 
   componentDidMount() {
@@ -283,12 +318,12 @@ class ActionsPanel extends React.PureComponent {
                   ? (ignore ? null : <div key={index} className={'action_item'}>{item}</div>)
                   : <div key={index} className={'action_item'}>
                     {Object.keys(item).map((name, ele) => (
-                        <React.Fragment key={index + '' + ele}>
-                          <span> {name}> </span>
+                        <div key={index + '' + ele}>
+                          <div> {name}></div>
                           {
                             Object.keys(item[name]).map(action => (
-                                <React.Fragment key={index + '' + ele + action}>
-                                  <span>{action}: </span>
+                                <div className={'action'} key={index + '' + ele + action}>
+                                  <div>{action}:</div>
                                   <JSONTree
                                       displayObjectSize={false}
                                       enableClipboard={false}
@@ -298,11 +333,11 @@ class ActionsPanel extends React.PureComponent {
                                       name={false}
                                       src={item[name][action]}
                                   />
-                                </React.Fragment>
+                                </div>
 
                             ))
                           }
-                        </React.Fragment>
+                        </div>
                     ))}
                   </div>
             })

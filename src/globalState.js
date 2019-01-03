@@ -39,8 +39,6 @@ class State {
       // console.log('global', state)
     })
   }
-
-
 }
 
 const state = new State()
