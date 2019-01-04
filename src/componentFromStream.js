@@ -172,7 +172,6 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
     }
 
     componentWillUnmount() {
-      console.log('unmount')
       this.active = false
       this.propsEmitter.emit()
       this.vdomSubscription.unsubscribe()
