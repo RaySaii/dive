@@ -21,6 +21,7 @@
   "dependencies": {
     "@babel/cli": "^7.1.5",
     "@babel/runtime": "7.0.0-beta.55",
+    "@types/react": "^16.7.20",
     "axios": "^0.18.0",
     "change-emitter": "^0.1.6",
     "deep-object-diff": "^1.1.0",
