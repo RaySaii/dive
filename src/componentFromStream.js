@@ -7,7 +7,8 @@ import {cloneDeep, isEmpty, isEqual, once, uniqueId} from 'lodash'
 import subState$ from './subState'
 import {actions$} from './globalState'
 import {
-  distinctUntilChanged, filter,
+  distinctUntilChanged,
+  filter,
   scan,
   share,
   shareReplay,
@@ -153,12 +154,21 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
 
     componentDidMount() {
       this.vdomSubscription = this.vdom$
-          .subscribe(vdom => this.setState({ vdom }))
+          .subscribe(
+              vdom => this.setState({ vdom }),
+              error => console.error(error),
+          )
       this.reducerSubscription = this.reducer$
-          .subscribe(reducer => this.update(reducer))
+          .subscribe(
+              reducer => this.update(reducer),
+              error => console.error(error),
+          )
       Object.keys(this.drivers).forEach(key =>
           this.driversSubscription.push(
-              this.drivers[key].subscribe(driverIn[key]),
+              this.drivers[key].subscribe(
+                  data => driverIn[key](data),
+                  error => console.error(error),
+              ),
           ))
       this.propsEmitter.emit(this.props)
     }
