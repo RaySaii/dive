@@ -166,7 +166,7 @@ export const componentFromStream = ({ myId, state$, updateGlobal, initState, upd
       Object.keys(this.drivers).forEach(key =>
           this.driversSubscription.push(
               this.drivers[key].subscribe(
-                  data => driverIn[key](data),
+                  data => driverIn[key].next(data),
                   error => console.error(error),
               ),
           ))
