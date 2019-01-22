@@ -1,9 +1,9 @@
 import { Component, ComponentClass, ReactElement } from 'react'
 import { createChangeEmitter } from 'change-emitter'
-import { Subject, BehaviorSubject, merge, isObservable, EMPTY, Subscription, Observable } from 'rxjs'
+import { Subject, BehaviorSubject, merge, EMPTY, Subscription, Observable } from 'rxjs'
 import shallowEqual from './shallowEqual'
-import { driverIn, driverOut, drivers, oldMap } from './applyDriver'
-import { cloneDeep, isEmpty, isEqual, once, uniqueId, omit } from 'lodash'
+import { driverIn, driverOut } from './applyDriver'
+import { isEmpty, uniqueId, omit } from 'lodash'
 import subState$ from './subState'
 import { actions$ } from './globalState'
 import {
@@ -16,8 +16,8 @@ import {
     tap,
     withLatestFrom,
 } from 'rxjs/operators'
-import { UpdateFn, UpdateGlobalFn, StreamsToSinksFn, StateStreamFactory, Reducer, Sinks } from './index'
-import { Props, ReducerFn, State, Drivers } from './type'
+import { UpdateFn, UpdateGlobalFn, StreamsToSinksFn, StateStreamFactory, Sinks } from './index'
+import { Props, ReducerFn, State, Drivers, Reducer } from './type'
 
 function getReducer(ownReducer: null | State | ReducerFn, id: string): ReducerFn | undefined {
     if (ownReducer == null) return
@@ -96,7 +96,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
             // 没有lens的组件，不与global连接，自己维护状态
             if (type == 'empty-lens') {
                 this.myId = uniqueId('dive-isolate')
-                this.state$ = new BehaviorSubject(_ => initState).pipe(
+                this.state$ = new BehaviorSubject((_:any) => initState).pipe(
                     scan((state: State, reducer: ReducerFn | any) => reducer(state), {}),
                     distinctUntilChanged(shallowEqual),
                     tap(state => Object.assign(this.curState, state)),
@@ -140,7 +140,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
                 ) as Subject<State>
             } else if (type == 'only-set-lens') {
                 this.myId = uniqueId('dive-isolate')
-                this.state$ = new BehaviorSubject(_ => initState).pipe(
+                this.state$ = new BehaviorSubject((_:any) => initState).pipe(
                     scan((state: State, reducer: ReducerFn | any) => reducer(state), {}),
                     distinctUntilChanged(),
                     tap(this.updateGlobal),
@@ -193,8 +193,8 @@ export function componentFromStream(sources: Sources): ComponentClass {
             Object.keys(this.drivers).forEach(key =>
                 this.driversSubscription.push(
                     this.drivers[key].subscribe(
-                        data => driverIn[key].next(data),
-                        error => console.error(error),
+                        (data: any) => driverIn[key].next(data),
+                        (error: any) => console.error(error),
                     ),
                 ))
             this.propsEmitter.emit(this.props)
@@ -204,16 +204,16 @@ export function componentFromStream(sources: Sources): ComponentClass {
             this.propsEmitter.emit(nextProps)
         }
 
-        shouldComponentUpdate(_, nextState: ComponentState) {
+        shouldComponentUpdate(_:any, nextState: ComponentState) {
             return nextState.vdom !== this.state.vdom
         }
 
         componentWillUnmount() {
             this.active = false
             this.propsEmitter.emit()
-            this.vdomSubscription.unsubscribe()
+            this.vdomSubscription!.unsubscribe()
             Object.keys(this.eventMap).forEach(key => this.eventMap[key].complete())
-            this.subSubscription.unsubscribe()
+            this.subSubscription!.unsubscribe()
             this.reducerSubscription && this.reducerSubscription.unsubscribe()
             this.driversSubscription.forEach(sub => sub.unsubscribe())
         }
