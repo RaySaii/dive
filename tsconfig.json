@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "strict": true,
-    "strictNullChecks": true,
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
@@ -18,6 +17,9 @@
     "skipLibCheck": true,
     "declaration": true,
     "esModuleInterop": true,
-    "lib": ['es7']
+    "lib": [
+      "es7",
+      "dom"
+    ]
   }
 }

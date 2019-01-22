@@ -1,24 +1,22 @@
 import { componentFromStream } from './componentFromStream'
 import { Observable, Subject } from 'rxjs'
 import globalState$, { globalState, actions$ } from './globalState'
-import { distinctUntilChanged, filter, map, share, shareReplay, tap, withLatestFrom } from 'rxjs/operators'
-import { cloneDeep, isEmpty, isEqual, pick, uniqueId, isPlainObject } from 'lodash'
+import { distinctUntilChanged, filter, map, withLatestFrom } from 'rxjs/operators'
+import { isEmpty, uniqueId, isPlainObject } from 'lodash'
 import _setDevTool from './devTool'
 import _applyDrive from './applyDriver'
 import { IHttpComponent } from './HttpComponent'
 import _shallowEqual from './shallowEqual'
-import _HTTP, { _fromHttp, _fromPureHttp } from './http'
-import { _And, _debug, _Get, _Map, _Or } from './utils'
+import { _And, _debug, _Or } from './utils'
 import { ComponentClass, ReactElement } from 'react'
-import { Drivers, Props, State } from './type'
+import { Drivers, Props, Reducer, ReducerFn, State } from './type'
+import IHTTP from './http'
 
 type GetFn = (globalState: State) => State
 type GetFnOnly = (globalState: State, ownState: State) => State
 type SetFn = (globalState: State, ownState: State) => State
 
 export type ComponentFactory = (streamsToSinks: StreamsToSinksFn) => ComponentClass<Props, State>
-
-export type Reducer = ((state: State) => State) | State
 
 export type UpdateGlobalFn = (state: State) => void
 
@@ -28,7 +26,7 @@ export type SinksSources = {
     state$: Subject<State>,
     props$: Observable<Props>,
     eventHandle: {
-        event: (eventName: string) => Subject<any>,
+        event: (eventName: string) => Observable<any>,
         handle: (eventName: string) => (...args: any[]) => void
     }
 } & Drivers
@@ -47,7 +45,7 @@ export type DiveSources = { lens?: Lens, state: State } | { lens: Lens, state?: 
 export type StateStreamFactory = (state$: Observable<State>) => Observable<State>
 
 export default function dive(x?: DiveSources): ComponentFactory | void {
-    let state$: Observable<State>
+    let state$: Subject<State>
     let update: any
     let myId: string
     if (!x) {
@@ -62,14 +60,12 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
         return
     }
 
-    if ('lens' ! in x && 'state' ! in x) {
+    if (!('lens' in x) && !('state' in x)) {
         console.error('[dive] object expected fields lens or state or both')
         return
     }
 
-    let { lens = {}, state: initState = {} } = x
-    const get = lens['get']
-    const set = lens['set']
+    let { lens, state: initState } = x
 
     if (!lens) {
         return streamsToSinks => componentFromStream({
@@ -79,6 +75,8 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
         })
     }
     if (typeof lens == 'object') {
+        const get = lens['get']
+        const set = lens['set']
         if (!get && !set) {
             console.error('[dive] lens expected fields lens or state or both')
             return
@@ -95,7 +93,7 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
             })
         } else if (!set && get) {
             let StateStreamFactory = (ownState$: Observable<State>) => globalState$.pipe(
-                withLatestFrom(ownState$, (state, ownState) => get(state, ownState || {})),
+                withLatestFrom(ownState$, (state, ownState) => (<GetFnOnly>get)(state, ownState || {})),
             )
             return streamsToSinks => componentFromStream({
                 StateStreamFactory,
@@ -106,13 +104,13 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
         } else {
             myId = uniqueId('dive')
             // const handledInit = Object.assign(initState, lens.get(globalState))
-            update = (ownReducer, init = false) => {
+            update = (ownReducer: Reducer, init = false) => {
                 if (ownReducer == null) return  // 当下一个reducer为null时放弃更新
                 let reducer = null
                 if (typeof ownReducer == 'function') {
-                    reducer = state => {
-                        const prevState = get(state)
-                        const nextState = ownReducer(prevState)
+                    reducer = (state: State) => {
+                        const prevState: State = (<GetFn>get)(state)
+                        const nextState: State = (<ReducerFn>ownReducer)(prevState)
                         // 当下一个reducer函数返回值仍为state时放弃更新
                         if (nextState == prevState) {
                             actions$.next({ id: myId, unChanged: true })
@@ -124,8 +122,8 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
                     }
                 } else {
                     // reducer为对象与setState同
-                    reducer = state => {
-                        const nextGlobalState = set(state, Object.assign({}, init ? {} : get(state), ownReducer))
+                    reducer = (state: State) => {
+                        const nextGlobalState = set(state, Object.assign({}, init ? {} : (<GetFn>get)(state), ownReducer))
                         actions$.next({ id: myId, state, nextState: nextGlobalState })
                         return nextGlobalState
                     }
@@ -138,19 +136,19 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
                     if (isEmpty(globalState)) return true
                     return shallowEqual(state, globalState)
                 }),
-                map(get),
+                map((<GetFn>get)),
                 distinctUntilChanged(shallowEqual),
-            )
+            ) as Subject<State>
         }
     } else if (typeof lens == 'string') {
         myId = lens
-        update = (ownReducer, init = false) => {
+        update = (ownReducer: Reducer, init = false) => {
             if (ownReducer == null) return
             let reducer = null
             if (typeof ownReducer == 'function') {
-                reducer = state => {
+                reducer = (state: State) => {
                     const prevState = state[myId]
-                    const nextState = ownReducer(prevState)
+                    const nextState = (<ReducerFn>ownReducer)(prevState)
                     if (nextState == prevState) {
                         actions$.next({ id: myId, unChanged: true })
                         return state
@@ -160,7 +158,7 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
                     return nextGlobalState
                 }
             } else {
-                reducer = state => {
+                reducer = (state: State) => {
                     const nextGlobalState = { ...state, [myId]: Object.assign({}, init ? {} : state[myId], ownReducer) }
                     actions$.next({ id: myId, state, nextState: nextGlobalState })
                     return nextGlobalState
@@ -176,7 +174,7 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
             }),
             map(state => state[myId]),
             distinctUntilChanged(shallowEqual),
-        )
+        )  as Subject<State>
     }
 
     return streamsToSinks => componentFromStream({ myId, state$, update, streamsToSinks })
@@ -189,18 +187,14 @@ export const And = _And
 
 export const Or = _Or
 
-export const Map = _Map
-
-export const Get = _Get
-
 export const HttpComponent = IHttpComponent
 
 export const shallowEqual = _shallowEqual
 
-export const HTTP = _HTTP
+export const HTTP = new IHTTP()
 
-export const fromHttp = _fromHttp
+export const fromHttp = HTTP.fromHttp
 
-export const fromPureHttp = _fromPureHttp
+export const fromPureHttp = HTTP.fromPureHttp
 
 export const debug = _debug
