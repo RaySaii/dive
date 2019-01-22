@@ -25,23 +25,22 @@ const Counter=dive({state:{count:1}})(({state$,eventHandle})=>{
         // reducer
     	mapTo(state=>({...state,count:state.count+1}))
     )
-    
-    // update state (pass by stream of reducer function)
-    // (more stream : state$.update(merge(...streams)))
-    state$.update(count$)
-    
-    // dive creates a React component by mapping an this stream of state$ to a stream of React nodes (vdom).
-
-    return state$.pipe(
-    	map(state=>(
-    	    <div>
-                {state.count}
-                <button onClick={eventHandle.handle('add')}>
-                    +
-                </button>
-            </div>
-        ))
-    )
+    return {
+       // dive creates a React component by mapping an this stream of state$ to a stream of React nodes (vdom).
+      DOM:state$.pipe(
+            map(state=>(
+              	    <div>
+                          {state.count}
+                          <button onClick={eventHandle.handle('add')}>
+                              +
+                          </button>
+                      </div>
+            ))
+      ),
+      // update state (pass by stream of reducer like setState)
+      // (more stream :merge(...streams))
+      reducer:count$
+    }
 })
 const App=dive({state:{a:1}})(({state$})=>{
     return state$.pipe(
@@ -149,7 +148,6 @@ It returns function which expects a state *stream* and eventHandle which can tra
       switchMap(fetchData),
       map(some=>state=>({...state,some}))
   )
-  state$.update(some$)
   // -> state:{some:{data:undefined,status:'pending'}}
   // -> state:{some:{data:someData,status:'fulfilled}}
   //...

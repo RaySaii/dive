@@ -92,11 +92,11 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
                 type: 'only-set-lens',
             })
         } else if (!set && get) {
-            let StateStreamFactory = (ownState$: Observable<State>) => globalState$.pipe(
+            let stateStreamFactory = (ownState$: Observable<State>) => globalState$.pipe(
                 withLatestFrom(ownState$, (state, ownState) => (<GetFnOnly>get)(state, ownState || {})),
             )
             return streamsToSinks => componentFromStream({
-                StateStreamFactory,
+                stateStreamFactory,
                 initState,
                 streamsToSinks,
                 type: 'only-get-lens',

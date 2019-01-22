@@ -42,13 +42,13 @@ function getReducer(ownReducer: null | State | ReducerFn, id: string): ReducerFn
 
 type Sources = {
     myId?: string,
-    state$?: Subject<State>,
-    stateStreamFactory?: StateStreamFactory,
-    updateGlobal?: UpdateGlobalFn,
-    initState?: State,
-    update?: UpdateFn,
-    streamsToSinks: StreamsToSinksFn,
     type?: string
+    state$?: Subject<State>,
+    update?: UpdateFn,
+    initState?: State,
+    updateGlobal?: UpdateGlobalFn,
+    streamsToSinks: StreamsToSinksFn,
+    stateStreamFactory?: StateStreamFactory,
 }
 
 type ComponentState = {
@@ -96,7 +96,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
             // 没有lens的组件，不与global连接，自己维护状态
             if (type == 'empty-lens') {
                 this.myId = uniqueId('dive-isolate')
-                this.state$ = new BehaviorSubject((_:any) => initState).pipe(
+                this.state$ = new BehaviorSubject((_: any) => initState).pipe(
                     scan((state: State, reducer: ReducerFn | any) => reducer(state), {}),
                     distinctUntilChanged(shallowEqual),
                     tap(state => Object.assign(this.curState, state)),
@@ -140,7 +140,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
                 ) as Subject<State>
             } else if (type == 'only-set-lens') {
                 this.myId = uniqueId('dive-isolate')
-                this.state$ = new BehaviorSubject((_:any) => initState).pipe(
+                this.state$ = new BehaviorSubject((_: any) => initState).pipe(
                     scan((state: State, reducer: ReducerFn | any) => reducer(state), {}),
                     distinctUntilChanged(),
                     tap(this.updateGlobal),
@@ -204,7 +204,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
             this.propsEmitter.emit(nextProps)
         }
 
-        shouldComponentUpdate(_:any, nextState: ComponentState) {
+        shouldComponentUpdate(_: any, nextState: ComponentState) {
             return nextState.vdom !== this.state.vdom
         }
 
