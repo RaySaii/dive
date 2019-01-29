@@ -203,7 +203,6 @@ export function componentFromStream(sources: Sources): ComponentClass {
         }
 
         componentDidMount() {
-            this.didMount.next()
             this.vdomSubscription = this.vdom$
                 .subscribe(
                     vdom => {
@@ -226,6 +225,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
                         error => console.error(error),
                     )
             }
+            this.didMount.next()
             Object.keys(this.drivers).forEach(key =>
                 this.driversSubscription.push(
                     this.drivers[key].subscribe(

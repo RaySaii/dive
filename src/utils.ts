@@ -44,9 +44,15 @@ export function _debug(message: string, style = '') {
 export function _shouldUpdate(compare: (object: { previous: any, current: any }) => boolean) {
     // notice that we return a function here
     let prev: any
+    let init: boolean = true
     return (source: Observable<any>) => Observable.create((subscriber: any) => {
         const subscription = source.pipe(
             filter((value) => {
+                if (init) {
+                    init = false
+                    prev = value
+                    return true
+                }
                 let temp = cloneDeep(prev)
                 prev = value
                 return compare({ previous: temp, current: value })
