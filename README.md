@@ -120,11 +120,12 @@ It returns function which expects a state *stream* and eventHandle which can tra
 **Returns:**
 
 
-*`(Function)`* which expect `{state$,props$,eventHandle}`,and return `Observable<ReactNode>`
+*`(Function)`* which expect `{state$,props$,eventHandle,didMount}`,and return `Observable<ReactNode>`
 
 - `state$` state *stream* which get from global state,once global state has changed, component will extracts `sub-state`.But `state$` may not produce next value,because dive use `distinctUntilChanged(shallowEqual)` to  extracts `sub-state`.`state$` always has `update` method which expected reducer function *stream*,the only way to update state.If `lens` sets up `set` function,global state and updated state will pass to `lens.set` to produce new global state.
 - `props$  ` props stream.
 - `eventHandle` handle any event to *stream*.`eventHandle.handle(string)` return a function to handle event.`eventHandle.event(string)` get the event *stream*.
+- `didMount`componentDidMount lifecycle as a Observable.
 
 
 
@@ -157,24 +158,23 @@ It returns function which expects a state *stream* and eventHandle which can tra
 
 - `And,Or` as the name say.
 
-- `Get,Map` avoid target is empty.
-
-  example:
-
-  ```jsx harmony
-  <div>
-         {And(condition1,condition2)&&<span>and</span>}  
-         {Or(condition1,condition2)&&<span>or</span>}
-         // if value is undefined will return null 
-         <Get target={source} path={'a.b.c[0]'}>
-              {data=><div>{data}</div>}  
-         </Get>
-  	// if id set, key will be item[id] 
-  	// if not , key will be array index or object key 
-         <Map target={source} id={'id'}>
-              {(item,key)=><div key={key}>{item}<div>}   
-         </Map>
-  </div>
+- `shouldUpdate` a custom operator to implement shouldComponentUpdate lifecycle:
+  ```js
+  import {shouldUpdate} from 'divejs'
+  ...
+  return {
+    DOM:combineLatest(
+      props$,
+      state$,
+      (props,state)=>Object.assign({},props,state)
+    ).pipe(
+      shouldUpdate(({previous,current})=>{
+        ...some compare
+        return boolean
+      })  
+    )
+  }
+  
   ```
 
 - `HttpComponent` :

@@ -7,7 +7,7 @@ import _setDevTool from './devTool'
 import _applyDrive from './applyDriver'
 import { IHttpComponent } from './HttpComponent'
 import _shallowEqual from './shallowEqual'
-import { _And, _debug, _Or } from './utils'
+import { _And, _debug, _Or, _shouldUpdate } from './utils'
 import { ComponentClass, ReactElement } from 'react'
 import { Drivers, Props, Reducer, ReducerFn, State } from './type'
 import IHTTP from './http'
@@ -23,8 +23,9 @@ export type UpdateGlobalFn = (state: State) => void
 export type UpdateFn = (reducer: Reducer, init?: boolean) => void
 
 export type SinksSources = {
-    state$: Subject<State>,
+    state$: Observable<State>,
     props$: Observable<Props>,
+    didMount: Subject<undefined>,
     eventHandle: {
         event: (eventName: string) => Observable<any>,
         handle: (eventName: string) => (...args: any[]) => void
@@ -33,7 +34,7 @@ export type SinksSources = {
 
 export type Sinks = Observable<null | ReactElement<any>> | {
     DOM: Observable<null | ReactElement<any>>
-    reducer: Observable<Reducer>
+    reducer?: Observable<Reducer>
 }
 
 export type StreamsToSinksFn = (sinksSources: SinksSources) => Sinks
@@ -198,3 +199,5 @@ export const fromHttp = HTTP.fromHttp
 export const fromPureHttp = HTTP.fromPureHttp
 
 export const debug = _debug
+
+export const shouldUpdate = _shouldUpdate

@@ -1,3 +1,5 @@
+import { Subject } from 'rxjs'
+
 export type State = {
     [key: string]: any
 }
@@ -14,6 +16,13 @@ export type SubState = {
     [key: string]: State
 }
 
+export type StateCacheMap = {
+    [key: string]: State
+}
+
+export type StateCache$Map = {
+    [key: string]: Subject<State>
+}
 
 export type Reducer = ReducerFn | State | null
 

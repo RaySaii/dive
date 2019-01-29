@@ -17,9 +17,15 @@
     "skipLibCheck": true,
     "declaration": true,
     "esModuleInterop": true,
+    "outDir": "./esm",
+    "rootDir": "./src",
     "lib": [
       "es7",
       "dom"
     ]
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "esm"
+  ]
 }

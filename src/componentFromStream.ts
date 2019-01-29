@@ -1,6 +1,6 @@
 import { Component, ComponentClass, ReactElement } from 'react'
 import { createChangeEmitter } from 'change-emitter'
-import { Subject, BehaviorSubject, merge, EMPTY, Subscription, Observable } from 'rxjs'
+import { Subject, BehaviorSubject, merge, EMPTY, Subscription, Observable, of } from 'rxjs'
 import shallowEqual from './shallowEqual'
 import { driverIn, driverOut } from './applyDriver'
 import { isEmpty, uniqueId, omit } from 'lodash'
@@ -15,9 +15,10 @@ import {
     takeWhile,
     tap,
     withLatestFrom,
+    switchMap,
 } from 'rxjs/operators'
 import { UpdateFn, UpdateGlobalFn, StreamsToSinksFn, StateStreamFactory, Sinks } from './index'
-import { Props, ReducerFn, State, Drivers, Reducer } from './type'
+import { Props, ReducerFn, State, Drivers, Reducer, StateCacheMap, StateCache$Map } from './type'
 
 function getReducer(ownReducer: null | State | ReducerFn, id: string): ReducerFn | undefined {
     if (ownReducer == null) return
@@ -61,6 +62,10 @@ type EventMap = {
 
 type ISubscription = Subscription | null
 
+let updatingId: string = ''
+const stateCacheMap: StateCacheMap = {}
+const stateCache$Map: StateCache$Map = {}
+
 export function componentFromStream(sources: Sources): ComponentClass {
     const { myId, state$, updateGlobal, initState, update, streamsToSinks, type, stateStreamFactory } = sources
     return class  extends Component<Props, ComponentState> {
@@ -81,6 +86,8 @@ export function componentFromStream(sources: Sources): ComponentClass {
         vdom$: Observable<null | ReactElement<any>>
         reducer$: Observable<Reducer>
         drivers: Drivers
+        stateWithCache$: Observable<State> = new Subject()
+        didMount: Subject<undefined> = new Subject()
 
         constructor(props: Props) {
             super(props)
@@ -150,13 +157,29 @@ export function componentFromStream(sources: Sources): ComponentClass {
                     this.state$!.next(reducer)
                 }
             }
-            this.state$ = this.state$!.pipe(
+            stateCache$Map[this.myId!] = new Subject<State>()
+            this.stateWithCache$ = merge(
+                this.state$!.pipe(
+                    switchMap((state: State) => {
+                            if (updatingId && updatingId !== this.myId) {
+                                stateCacheMap[this.myId!] = state
+                                return EMPTY
+                            } else {
+                                return of(state)
+                            }
+                        },
+                    ),
+                    // tap(() => console.log(updatingId)),
+                ),
+                stateCache$Map[this.myId!],
+            ).pipe(
                 takeWhile(() => this.active),
             ) as Subject<State>
-            this.subSubscription = this.state$.subscribe(state => subState$.next({ [this.myId!]: state }))
+            this.subSubscription = this.stateWithCache$.subscribe(state => subState$.next({ [this.myId!]: state }))
             const sinks: Sinks = streamsToSinks({
                 props$: this.props$.pipe(distinctUntilChanged(shallowEqual)),
-                state$: this.state$,
+                state$: this.stateWithCache$,
+                didMount: this.didMount,
                 eventHandle: {
                     event: (eventName) => {
                         this.eventMap[eventName] = this.eventMap[eventName] || new Subject()
@@ -180,16 +203,29 @@ export function componentFromStream(sources: Sources): ComponentClass {
         }
 
         componentDidMount() {
+            this.didMount.next()
             this.vdomSubscription = this.vdom$
                 .subscribe(
-                    vdom => this.setState({ vdom }),
+                    vdom => {
+                        updatingId = this.myId!
+                        this.setState({ vdom }, () => {
+                            updatingId = ''
+                            const stateCacheQueue = Object.keys(stateCacheMap)
+                            if (stateCacheMap[stateCacheQueue[0]]) {
+                                stateCache$Map[stateCacheQueue[0]].next(stateCacheMap[stateCacheQueue[0]])
+                                delete stateCacheMap[stateCacheQueue[0]]
+                            }
+                        })
+                    },
                     error => console.error(error),
                 )
-            this.reducerSubscription = this.reducer$
-                .subscribe(
-                    (reducer: Reducer) => this.update!(reducer),
-                    error => console.error(error),
-                )
+            if (this.reducer$) {
+                this.reducerSubscription = this.reducer$
+                    .subscribe(
+                        (reducer: Reducer) => this.update!(reducer),
+                        error => console.error(error),
+                    )
+            }
             Object.keys(this.drivers).forEach(key =>
                 this.driversSubscription.push(
                     this.drivers[key].subscribe(
@@ -216,6 +252,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
             this.subSubscription!.unsubscribe()
             this.reducerSubscription && this.reducerSubscription.unsubscribe()
             this.driversSubscription.forEach(sub => sub.unsubscribe())
+            this.didMount.complete()
         }
 
         render() {
