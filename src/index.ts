@@ -68,6 +68,11 @@ export default function dive(x?: DiveSources): ComponentFactory | void {
 
     let { lens, state: initState } = x
 
+    initState = initState || {}
+    if (!isPlainObject(initState)) {
+        console.error('[dive] state must be a object')
+    }
+
     if (!lens) {
         return streamsToSinks => componentFromStream({
             initState,
