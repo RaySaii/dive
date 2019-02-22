@@ -69,12 +69,10 @@ const stateCache$Map: StateCache$Map = {}
 
 export function componentFromStream(sources: Sources): ComponentClass {
     const { myId, state$, updateGlobal, initState, update, streamsToSinks, type, stateStreamFactory } = sources
-    let init = true
     return class  extends Component<Props, ComponentState> {
         state: ComponentState = { vdom: null }
         state$: Subject<State> | undefined = state$
         propsEmitter: { listen: (...args: any[]) => void, emit: (...args: any[]) => void } = createChangeEmitter()
-        props$: Subject<Props> = new Subject()
         update: UpdateFn | undefined = update
         updateGlobal: UpdateGlobalFn | undefined = updateGlobal
         subSubscription: ISubscription = null
@@ -84,16 +82,19 @@ export function componentFromStream(sources: Sources): ComponentClass {
         myId: string | undefined = myId
         eventMap: EventMap = {}
         active: boolean = true
+        props$: Subject<Props>
         curState: State = {}
         vdom$: Observable<null | ReactElement<any>>
         reducer$: Observable<Reducer>
         drivers: Drivers
         stateWithCache$: Observable<State> = new Subject()
         didMount: Subject<undefined> = new Subject()
+        init: boolean = true
+        props: any
 
         constructor(props: Props) {
             super(props)
-
+            this.props$ = new BehaviorSubject(props)
             this.propsEmitter.listen((props: Props) => {
                 if (props) {
                     this.props$.next(props)
@@ -179,7 +180,9 @@ export function componentFromStream(sources: Sources): ComponentClass {
             ) as Subject<State>
             this.subSubscription = this.stateWithCache$.subscribe(state => subState$.next({ [this.myId!]: state }))
             const sinks: Sinks = streamsToSinks({
-                props$: this.props$.pipe(distinctUntilChanged(shallowEqual)),
+                props$: this.props$.pipe(
+                    distinctUntilChanged(shallowEqual),
+                ),
                 state$: this.stateWithCache$,
                 didMount: this.didMount,
                 eventHandle: {
@@ -205,6 +208,26 @@ export function componentFromStream(sources: Sources): ComponentClass {
         }
 
         componentDidMount() {
+            console.log(this.state.vdom)
+            this.vdomSubscription = this.vdom$
+                .subscribe(
+                    vdom => {
+                        updatingId = this.myId!
+                        this.setState({ vdom }, () => {
+                            if (this.init) {
+                                this.didMount.next()
+                                this.init = false
+                            }
+                            updatingId = ''
+                            const stateCacheQueue = Object.keys(stateCacheMap)
+                            if (stateCacheMap[stateCacheQueue[0]]) {
+                                stateCache$Map[stateCacheQueue[0]].next(stateCacheMap[stateCacheQueue[0]])
+                                delete stateCacheMap[stateCacheQueue[0]]
+                            }
+                        })
+                    },
+                    error => console.error(error),
+                )
             Object.keys(this.drivers).forEach(key =>
                 this.driversSubscription.push(
                     this.drivers[key].subscribe(
@@ -219,26 +242,6 @@ export function componentFromStream(sources: Sources): ComponentClass {
                         error => console.error(error),
                     )
             }
-            this.vdomSubscription = this.vdom$
-                .subscribe(
-                    vdom => {
-                        updatingId = this.myId!
-                        this.setState({ vdom }, () => {
-                            if (init) {
-                                this.didMount.next()
-                                init = false
-                            }
-                            updatingId = ''
-                            const stateCacheQueue = Object.keys(stateCacheMap)
-                            if (stateCacheMap[stateCacheQueue[0]]) {
-                                stateCache$Map[stateCacheQueue[0]].next(stateCacheMap[stateCacheQueue[0]])
-                                delete stateCacheMap[stateCacheQueue[0]]
-                            }
-                        })
-                    },
-                    error => console.error(error),
-                )
-            this.propsEmitter.emit(this.props)
         }
 
         componentWillReceiveProps(nextProps: Props) {
