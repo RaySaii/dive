@@ -66,8 +66,10 @@ let updatingId: string = ''
 const stateCacheMap: StateCacheMap = {}
 const stateCache$Map: StateCache$Map = {}
 
+
 export function componentFromStream(sources: Sources): ComponentClass {
     const { myId, state$, updateGlobal, initState, update, streamsToSinks, type, stateStreamFactory } = sources
+    let init = true
     return class  extends Component<Props, ComponentState> {
         state: ComponentState = { vdom: null }
         state$: Subject<State> | undefined = state$
@@ -208,6 +210,10 @@ export function componentFromStream(sources: Sources): ComponentClass {
                     vdom => {
                         updatingId = this.myId!
                         this.setState({ vdom }, () => {
+                            if (init) {
+                                this.didMount.next()
+                                init = false
+                            }
                             updatingId = ''
                             const stateCacheQueue = Object.keys(stateCacheMap)
                             if (stateCacheMap[stateCacheQueue[0]]) {
@@ -225,7 +231,6 @@ export function componentFromStream(sources: Sources): ComponentClass {
                         error => console.error(error),
                     )
             }
-            this.didMount.next()
             Object.keys(this.drivers).forEach(key =>
                 this.driversSubscription.push(
                     this.drivers[key].subscribe(
