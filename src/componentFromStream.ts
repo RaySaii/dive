@@ -205,6 +205,20 @@ export function componentFromStream(sources: Sources): ComponentClass {
         }
 
         componentDidMount() {
+            Object.keys(this.drivers).forEach(key =>
+                this.driversSubscription.push(
+                    this.drivers[key].subscribe(
+                        (data: any) => driverIn[key].next(data),
+                        (error: any) => console.error(error),
+                    ),
+                ))
+            if (this.reducer$) {
+                this.reducerSubscription = this.reducer$
+                    .subscribe(
+                        (reducer: Reducer) => this.update!(reducer),
+                        error => console.error(error),
+                    )
+            }
             this.vdomSubscription = this.vdom$
                 .subscribe(
                     vdom => {
@@ -224,20 +238,6 @@ export function componentFromStream(sources: Sources): ComponentClass {
                     },
                     error => console.error(error),
                 )
-            if (this.reducer$) {
-                this.reducerSubscription = this.reducer$
-                    .subscribe(
-                        (reducer: Reducer) => this.update!(reducer),
-                        error => console.error(error),
-                    )
-            }
-            Object.keys(this.drivers).forEach(key =>
-                this.driversSubscription.push(
-                    this.drivers[key].subscribe(
-                        (data: any) => driverIn[key].next(data),
-                        (error: any) => console.error(error),
-                    ),
-                ))
             this.propsEmitter.emit(this.props)
         }
 
