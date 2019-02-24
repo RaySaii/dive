@@ -208,7 +208,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
         }
 
         componentDidMount() {
-            console.log(this.state.vdom)
+            // console.log(this.state.vdom)
             this.vdomSubscription = this.vdom$
                 .subscribe(
                     vdom => {
