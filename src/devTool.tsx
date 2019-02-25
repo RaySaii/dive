@@ -346,8 +346,10 @@ class ActionsPanel extends React.Component<{ active: boolean }, State> {
 
 export default function _setDevTool(bool: boolean) {
     if (!bool) return
-    const div = document.createElement('div')
-    div.id = 'dive-devtool'
+    const id = 'dive-devtool'
+    let div = document.getElementById(id)
+    div = div || document.createElement('div')
+    div.id = id
     document.body.appendChild(div)
     ReactDOM.render(
         <DevTool/>,
