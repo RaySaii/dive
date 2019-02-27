@@ -7,7 +7,7 @@ import _setDevTool from './devTool'
 import _applyDrive from './applyDriver'
 import { IHttpComponent } from './HttpComponent'
 import _shallowEqual from './shallowEqual'
-import { _And, _debug, _Or, _shouldUpdate } from './utils'
+import { _And, _debug, _Or, _pickByKey, _shouldUpdate } from './utils'
 import { ComponentClass, ReactElement } from 'react'
 import { Drivers, Props, Reducer, ReducerFn, State } from './type'
 import IHTTP from './http'
@@ -206,3 +206,5 @@ export const fromPureHttp = HTTP.fromPureHttp
 export const debug = _debug
 
 export const shouldUpdate = _shouldUpdate
+
+export const pickByKey = _pickByKey

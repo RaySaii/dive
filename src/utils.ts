@@ -1,6 +1,6 @@
-import { tap, filter } from 'rxjs/operators'
+import { tap, filter, map } from 'rxjs/operators'
 import { Observable } from 'rxjs'
-import { cloneDeep } from 'lodash'
+import { cloneDeep, isPlainObject, pick } from 'lodash'
 
 export function _And(...rest: any[]): boolean {
     for (let item of rest) {
@@ -65,6 +65,30 @@ export function _shouldUpdate(compare: (object: { previous: any, current: any })
                 }
             },
             err => subscriber.error(err),
+            () => subscriber.complete(),
+        )
+
+        return subscription
+    })
+}
+
+export function _pickByKey(...args: any[]) {
+    return (source: any) => Observable.create((subscriber: any) => {
+        const subscription = source.pipe(
+            map(value => {
+                if (!isPlainObject(value)) {
+                    throw new TypeError('pickByKey can only use for Object value')
+                }
+                return pick(value, ...args)
+            }),
+        ).subscribe((value: any) => {
+                try {
+                    subscriber.next(value)
+                } catch (err) {
+                    subscriber.error(err)
+                }
+            },
+            (err: any) => subscriber.error(err),
             () => subscriber.complete(),
         )
 
