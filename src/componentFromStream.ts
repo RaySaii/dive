@@ -67,6 +67,16 @@ const stateCacheMap: StateCacheMap = {}
 const stateCache$Map: StateCache$Map = {}
 
 
+function updateNext() {
+    updatingId = ''
+    const stateCacheQueue = Object.keys(stateCacheMap)
+    if (stateCacheMap[stateCacheQueue[0]]) {
+        stateCache$Map[stateCacheQueue[0]].next(stateCacheMap[stateCacheQueue[0]])
+        delete stateCacheMap[stateCacheQueue[0]]
+    }
+}
+
+
 export function componentFromStream(sources: Sources): ComponentClass {
     const { myId, state$, updateGlobal, initState, update, streamsToSinks, type, stateStreamFactory } = sources
     return class  extends Component<Props, ComponentState> {
@@ -160,10 +170,14 @@ export function componentFromStream(sources: Sources): ComponentClass {
                     this.state$!.next(reducer)
                 }
             }
+
+            //多个组件密集setState，可能导致组件setState到更新真实DOM之间，插入其他组件的setState
+            //导致本应该销毁的组件,在父组件确定此组件要销毁之前，重新render
             stateCache$Map[this.myId!] = new Subject<State>()
             this.stateWithCache$ = merge(
                 this.state$!.pipe(
                     switchMap((state: State) => {
+                            //有其他组件更新 将本次状态保存入stateCacheMap
                             if (updatingId && updatingId !== this.myId) {
                                 stateCacheMap[this.myId!] = state
                                 return EMPTY
@@ -172,13 +186,16 @@ export function componentFromStream(sources: Sources): ComponentClass {
                             }
                         },
                     ),
-                    // tap(() => console.log(updatingId)),
                 ),
                 stateCache$Map[this.myId!],
             ).pipe(
                 takeWhile(() => this.active),
             ) as Subject<State>
+
+
             this.subSubscription = this.stateWithCache$.subscribe(state => subState$.next({ [this.myId!]: state }))
+
+
             const sinks: Sinks = streamsToSinks({
                 props$: this.props$.pipe(
                     distinctUntilChanged(shallowEqual),
@@ -209,6 +226,8 @@ export function componentFromStream(sources: Sources): ComponentClass {
 
         componentDidMount() {
             // console.log(this.state.vdom)
+            // console.count(this.myId + 'did')
+            // console.log(this.myId, this.state$)
             this.vdomSubscription = this.vdom$
                 .subscribe(
                     vdom => {
@@ -218,12 +237,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
                                 this.didMount.next()
                                 this.init = false
                             }
-                            updatingId = ''
-                            const stateCacheQueue = Object.keys(stateCacheMap)
-                            if (stateCacheMap[stateCacheQueue[0]]) {
-                                stateCache$Map[stateCacheQueue[0]].next(stateCacheMap[stateCacheQueue[0]])
-                                delete stateCacheMap[stateCacheQueue[0]]
-                            }
+                            updateNext()
                         })
                     },
                     error => console.error(error),
@@ -253,6 +267,10 @@ export function componentFromStream(sources: Sources): ComponentClass {
         }
 
         componentWillUnmount() {
+            //防止在setState的过程中，组件要销毁了，导致updateQueue中断
+            if (updatingId == this.myId) {
+                updateNext()
+            }
             this.active = false
             this.propsEmitter.emit()
             this.vdomSubscription!.unsubscribe()
@@ -261,6 +279,7 @@ export function componentFromStream(sources: Sources): ComponentClass {
             this.reducerSubscription && this.reducerSubscription.unsubscribe()
             this.driversSubscription.forEach(sub => sub.unsubscribe())
             this.didMount.complete()
+            this.state$ = undefined
         }
 
         render() {
