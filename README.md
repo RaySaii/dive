@@ -43,14 +43,16 @@ const Counter=dive({state:{count:1}})(({state$,eventHandle})=>{
     }
 })
 const App=dive({state:{a:1}})(({state$})=>{
-    return state$.pipe(
-    	map((state)=>(
-            <div>
-            	<div>{state.a}</div>
-            	<Counter/>
-            </div>
-        ))
-    )
+    return {
+      DOM:state$.pipe(
+              	map((state)=>(
+                      <div>
+                      	<div>{state.a}</div>
+                      	<Counter/>
+                      </div>
+                  ))
+              )
+    }
 })
 
 ReactDOM.render(
@@ -59,77 +61,89 @@ ReactDOM.render(
 );
 ```
 
-### More important
-
-Manage state in a single state atom.
-
-- **Simple:** all state lives in one place only.
-- **Predictable:** use the same pattern to build any component.
-
-### How it works?
-
-Looks like cycle-onionify:
-
-```javascript
-// string lens
-const SimpleLens=dive({lens:'simple',state:{a:1}})(()=>{})
-// -> global state:{simple:{a:1}}
-                                      
-```
-
 #### How to share data among components?
 
 ```js
-// -> global state:{simple:{a:1}}
 const Foo=dive({
-    lens:{
-        get:state=>({...state.foo,a:state.simple.a}),
-        // -> Foo component state:{a:1,b:1}
-        set:(state,ownState)=>({
-            ...state,
-            foo:ownState,
-            simple:{...state.simple,a:ownState.a}
-        })
-    },
-    state:{b:1}
+    state:{foo:1},
+    globalState:['foo']
 })(()=>{})
-// -> global state:{simple:{a:1},foo:{a:1,b:1}}
-```
 
-The `lens` is composed of a `get` function that extracts the `.foo` sub-state, and a `set` function that returns the updated state whenever the sub-state is modified by the child component. 
+const Bar=dive({
+    state:{bar:2},
+})(({state$})=>{
+  return {
+    DOM:combineLatest(
+        state$,
+        Foo.globalState$,
+        (state,fooState)=>Object.assign({},state,globalState)
+    ).pipe(
+        map(({bar,foo})=><div>bar:{bar} foo:{foo}</div>)
+    )
+  }
+})
 
-#### What is the different among cycle-onionify?
+``` 
 
-Cycle-onionify`s state tree is same as component tree,because cyclesjs is strict implementing functional programming.Child returns its dom sinks,state sinks and so on,parent compose children sinks and return own sinks.This is a good abstraction.But in real-world ,this way cause some problem.The biggest problem is modify a deep state will be so trouble.So state tree is flat struct in dive.
+#### How to share event among components?
+```js
+const Foo=dive({
+    state:{foo:1},
+    globalState:['foo'],
+    globalEvent:['add']
+})(({state$,eventHandle})=>{
+  return {
+    DOM:state$.pipe(
+        map(state=>
+          <div>{state.foo}<button onClick={eventHandle.handle('add')}>+</button></div>
+        )
+    ),
+    reducer:eventHandle.event('add').pipe(mapTo(state=>({...state,foo:state.foo+1})))
+  }
+})
+
+const Bar=dive({
+    state:{bar:2},
+})(({state$})=>{
+  return {
+    DOM:combineLatest(
+        state$,
+        Foo.globalState$,
+        (state,fooState)=>Object.assign({},state,globalState)
+    ).pipe(
+        map(({bar,foo})=><div>bar:{bar} foo:{foo}</div>)
+    ),
+    reducer:Foo.globalEvent.event('add').pipe(
+        mapTo(state=>({...state,bar:state.bar+1}))
+    )
+  }
+})
+
+``` 
 
 ### API
 
-#### `dive(lens,state)`
+#### `dive({state,globalState,globalEvent})`
 
 It returns function which expects a state *stream* and eventHandle which can transform event to *stream* and  props *stream*. 
 
 **Arguments:**
 
+- `state:Object `give component initial state.
 
-- `lens?:string|{get:Function,set:Function} `the `lens`  give component state a id in global state.Or composed of a `get` function that extracts the `sub-state`, and a `set` function that returns the updated state whenever the sub-state is modified by the child component.
+- `globalState:String[] `define which state can be use out of component.
 
-- `state:Object `give component initial state,if `lens  ` sets up `get` function,dive will assign `state` and `sub-state`.
-
+- `globalEvent:String[] `define which event can be use out of component.
 
 
 **Returns:**
 
 
-*`(Function)`* which expect `{state$,props$,eventHandle,didMount}`,and return `Observable<ReactNode>`
+*`(Function)`* which expect `{state$,props$,eventHandle}`,and return `{DOM:Observable<ReactNode>,reducer?:Observable<ReducerFn|Object>}`
 
-- `state$` state *stream* which get from global state,once global state has changed, component will extracts `sub-state`.But `state$` may not produce next value,because dive use `distinctUntilChanged(shallowEqual)` to  extracts `sub-state`.`state$` always has `update` method which expected reducer function *stream*,the only way to update state.If `lens` sets up `set` function,global state and updated state will pass to `lens.set` to produce new global state.
-- `props$  ` props stream.
-- `eventHandle` handle any event to *stream*.`eventHandle.handle(string)` return a function to handle event.`eventHandle.event(string)` get the event *stream*.
-- `didMount`componentDidMount lifecycle as a Observable.
-
-
-
-
+- `state$` state stream.
+- `props$` props stream.
+- `eventHandle` handle any event to stream.`eventHandle.handle(string)` return a function to handle event.`eventHandle.event(string)` get the event *stream*.`eventHandle.didMount`get the componentDidMount stream.
 
 #### dive/utils
 
