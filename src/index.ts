@@ -1,5 +1,3 @@
-import _setDevTool from './devTool'
-import _applyDrive from './applyDriver'
 import { IHttpComponent } from './HttpComponent'
 import _shallowEqual from './shallowEqual'
 import { _And, _debug, _Or, _pickByKey, _shouldUpdate } from './utils'
@@ -166,9 +164,6 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
 
 }
 
-
-export const applyDriver = _applyDrive
-export const setDevTool = _setDevTool
 
 export const And = _And
 
