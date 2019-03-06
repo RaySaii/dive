@@ -1,5 +1,11 @@
 module.exports = {
   transform: {
-    '^.+\\.(t|j)sx?$': 'ts-jest',
+    '^.+\\.(j|t)sx?$': 'ts-jest',
+  },
+  testPathIgnorePatterns:['/esm/'],
+  globals: {
+    'ts-jest': {
+      tsConfig: './tsconfig.test.json',
+    },
   },
 }
