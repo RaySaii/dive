@@ -109,7 +109,7 @@ const Bar=dive({
     DOM:combineLatest(
         state$,
         Foo.globalState$,
-        (state,fooState)=>Object.assign({},state,globalState)
+        (state,fooState)=>Object.assign({},state,fooState)
     ).pipe(
         map(({bar,foo})=><div>bar:{bar} foo:{foo}</div>)
     ),

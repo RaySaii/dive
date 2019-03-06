@@ -23,24 +23,18 @@
     "@types/lodash": "^4.14.120",
     "@types/react": "^16.7.20",
     "@types/react-dom": "^16.0.11",
-    "@types/styled-components": "^4.1.6",
-    "axios": "^0.18.0",
-    "change-emitter": "^0.1.6",
-    "immer": "^1.7.4",
     "lodash": "^4.17.11",
-    "react-json-view": "^1.19.1",
     "react-test-renderer": "^16.6.3",
     "rxjs": "^6.3.3",
-    "rxjs-hooks": "^0.2.1",
-    "shallow-diff": "0.0.5",
-    "styled-components": "^4.1.1",
     "typescript": "^3.2.4"
   },
   "devDependencies": {
+    "@types/node": "^11.10.4",
     "cross-env": "^5.2.0",
-    "jest": "^23.6.0",
+    "jest": "^24.1.0",
     "react": "^16.7.0-alpha.2",
     "react-dom": "^16.7.0-alpha.2",
-    "rxjs-marbles": "^4.3.5"
+    "rxjs-marbles": "^4.3.5",
+    "ts-jest": "^24.0.0"
   }
 }

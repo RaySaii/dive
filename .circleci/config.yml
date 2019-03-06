@@ -2,27 +2,30 @@ version: 2
 jobs:
   build:
     docker:
-    - image: circleci/node:latest
+      - image: circleci/node:latest
     branches:
       only:
-      - master
+        - master
     steps:
-    - checkout
-    - restore_cache:
-        keys:
-        - dependencies-{{ checksum "package.json" }}
-        # fallback to using the latest cache if no exact match is found
-        - dependencies-
-    - run:
-        name: Install
-        command: npm install
-    - save_cache:
-        paths:
-        - node_modules
-        key: dependencies-{{ checksum "package.json" }}
-    - run:
-        name: Build
-        command: npm run build
-    - run:
-        name: Deploy
-        command: npm publish
+      - checkout
+      - restore_cache:
+          keys:
+            - dependencies-{{ checksum "package.json" }}
+            # fallback to using the latest cache if no exact match is found
+            - dependencies-
+      - run:
+          name: Install
+          command: npm install
+      - save_cache:
+          paths:
+            - node_modules
+          key: dependencies-{{ checksum "package.json" }}
+      - run:
+          name: Test
+          command: npm run test
+      - run:
+          name: Build
+          command: npm run build
+      - run:
+          name: Deploy
+          command: npm publish

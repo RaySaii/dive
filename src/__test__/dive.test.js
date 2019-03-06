@@ -1,89 +1,71 @@
 import dive from '../index'
 import React from 'react'
 import {create} from 'react-test-renderer'
-import globalState$, {globalState} from '../globalState'
 import {mapTo, map, tap, concatAll, concat, switchMapTo} from 'rxjs/operators'
 import {marbles, observe} from 'rxjs-marbles/jest'
-import {EMPTY, of} from 'rxjs'
+import {EMPTY, of,combineLatest} from 'rxjs'
 
 export function find(node, type) {
   return node.find((node) => node.type === type)
 }
 
-const SimpleSet = dive({
-  lens: {
-    set: (state, ownState) => ({
-      ...state,
-      test: ownState,
-    }),
-  },
+const Foo = dive({
+  state: { foo: 1 },
+  globalState: ['foo'],
+  globalEvent: ['add'],
 })(({ state$, eventHandle }) => {
-  state$.update(
-      eventHandle.event('click').pipe(
-          mapTo({ a: 1 }),
-      ),
-  )
-  return state$.pipe(
-      map(state => <div>
-        <h1>{state.a}</h1>
-        <button onClick={eventHandle.handle('click')}/>
-      </div>),
-  )
+  return {
+    DOM: state$.pipe(
+        map(state =>
+            <div>
+              <h3>Foo Component:</h3>
+              foo:<span>{state.foo}</span>
+              <button onClick={eventHandle.handle('add')}>foo add event</button>
+            </div>,
+        ),
+    ),
+    reducer: eventHandle.event('add').pipe(mapTo(state => ({ ...state, foo: state.foo + 1 }))),
+  }
 })
 
 
-const SimpleGet = dive({
-  lens: { get: state => ({ a: state.test ? state.test.a : '' }) },
-})(({ state$ }) => state$.pipe(map(state => <h2>{state.a}</h2>)))
-
-
-const ComplexLens = dive({
-  lens: {
-    get: state => ({ ...state.test1, a: state.test ? state.test.a : '' }),
-    set: (state, ownState) => ({ ...state, test1: ownState }),
-  },
-})(({ state$, eventHandle }) => {
-  state$.update(eventHandle.event('change').pipe(mapTo({ b: 2 })))
-  return state$.pipe(map(state =>
-      <>
-        <h3>{state.b}</h3>
-        <button onClick={eventHandle.handle('change')}>{state.a}</button>
-      </>,
-  ))
+const Bar = dive({
+  state: { bar: 2 },
+})(({ state$ }) => {
+  return {
+    DOM: combineLatest(
+        state$,
+        Foo.globalState$,
+        (state, fooState) => Object.assign({}, state, fooState),
+    ).pipe(
+        map(({ bar, foo }) => <div>
+          <h3>Bar Component:</h3>
+          bar:<span>{bar}</span>
+          foo:<i>{foo}</i>
+        </div>),
+    ),
+    reducer: Foo.globalEvent.event('add').pipe(
+        mapTo(state => ({ ...state, bar: state.bar + 1 })),
+    ),
+  }
 })
 
-describe('dive test', () => {
+describe('dive sharedState and sharedEvent', () => {
 
-  it('should set global test', (done) => {
-    const fixture = <SimpleSet/>
-    const fixture1 = <SimpleGet/>
-    const fixture2 = <ComplexLens/>
-    const testRender = create(fixture)
-    const testRender1 = create(fixture1)
-    const testRender2 = create(fixture2)
-    const button = find(testRender.root, 'button')
-    const button1 = find(testRender2.root, 'button')
-    const h1 = find(testRender.root, 'h1')
-    const h2 = find(testRender1.root, 'h2')
-    const h3 = find(testRender2.root, 'h3')
-    expect(h1.children).toEqual([])
-    expect(h2.children).toEqual([])
-    expect(h3.children).toEqual([])
-    expect(button1.children).toEqual([])
+  it('should sync state and event', (done) => {
+    const FooC = <Foo/>
+    const BarC = <Bar/>
+    const FooRender = create(FooC)
+    const BarRender = create(BarC)
+    const button = find(FooRender.root, 'button')
+    const foo = find(FooRender.root, 'span')
+    const fooInBar = find(BarRender.root, 'i')
+    const bar = find(BarRender.root, 'span')
     button.props.onClick()
-    expect(h1.children).toEqual(['1'])
-    expect(h2.children).toEqual(['1'])
-    expect(h3.children).toEqual([])
-    expect(button1.children).toEqual(['1'])
-    button1.props.onClick()
-    globalState$.subscribe(value => {
-      expect(value).toEqual({ test: { a: 1 }, test1: { a: 1, b: 2 } })
-      done()
-    })
+    expect(foo.children).toEqual(['2'])
+    expect(bar.children).toEqual(['3'])
+    expect(fooInBar.children).toEqual(['2'])
+    done()
   })
 
-  // it('should set global test1', (done) => {
-  //   const fixture2 = <ComplexLens/>
-  //   const testRender = create(fixture)
-  // })
 })

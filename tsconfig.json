@@ -2,6 +2,7 @@
   "compilerOptions": {
     "strict": true,
     "sourceMap": true,
+    "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
     "importHelpers": true,
@@ -26,6 +27,7 @@
   },
   "exclude": [
     "node_modules",
-    "esm"
+    "esm",
+    "src/__test__"
   ]
 }
