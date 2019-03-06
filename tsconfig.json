@@ -27,7 +27,7 @@
   "exclude": [
     "node_modules",
     "esm",
-    "src/__test__",
+    "**/*.test.*",
     "jest.config.js"
   ]
 }
