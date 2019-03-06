@@ -1,4 +1,5 @@
-import { Subject } from 'rxjs'
+import { Observable, Subject } from 'rxjs'
+import { ReactElement } from 'react'
 
 export type State = {
     [key: string]: any
@@ -8,23 +9,36 @@ export type Props = {
     [key: string]: any
 }
 
-export type Drivers = {
-    [key: string]: any
+export type Sources = {
+    state: State,
+    globalState: string[],
+    globalEvent: string[]
 }
 
-export type SubState = {
-    [key: string]: State
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+
+export type EventHandle = {
+    event: (eventName: string) => Subject<any>,
+    handle: (eventName: string) => (...args: any[]) => void
+    didMount: Subject<any>
 }
 
-export type StateCacheMap = {
-    [key: string]: State
+export type GlobalEvent = Omit<EventHandle, 'didMount'>
+
+export type StreamSources = {
+    state$: Observable<State>,
+    props$: Subject<Props>,
+    eventHandle: EventHandle
 }
 
-export type StateCache$Map = {
-    [key: string]: Subject<State>
+export type Sinks = {
+    DOM: Observable<ReactElement<any>>,
+    reducer?: Observable<Reducer>
 }
 
-export type Reducer = ReducerFn | State | null
+export type ComponentFromStream = (streamSources: StreamSources) => Sinks
+
+export type Reducer = ReducerFn | State
 
 export type ReducerFn = (state: State) => State
 

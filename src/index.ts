@@ -1,190 +1,171 @@
-import { componentFromStream } from './componentFromStream'
-import { Observable, Subject } from 'rxjs'
-import globalState$, { globalState, actions$ } from './globalState'
-import { distinctUntilChanged, filter, map, withLatestFrom } from 'rxjs/operators'
-import { isEmpty, uniqueId, isPlainObject } from 'lodash'
 import _setDevTool from './devTool'
 import _applyDrive from './applyDriver'
 import { IHttpComponent } from './HttpComponent'
 import _shallowEqual from './shallowEqual'
 import { _And, _debug, _Or, _pickByKey, _shouldUpdate } from './utils'
-import { ComponentClass, ReactElement } from 'react'
-import { Drivers, Props, Reducer, ReducerFn, State } from './type'
 import IHTTP from './http'
+import { isPlainObject, pick } from 'lodash'
+import * as React from 'react'
+import { ComponentFromStream, EventHandle, GlobalEvent, Props, Reducer, Sources, State } from './type'
+import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs'
+import { distinctUntilChanged, scan, shareReplay, skip, tap, takeWhile } from 'rxjs/operators'
+import { ReactElement } from 'react'
 
-type GetFn = (globalState: State) => State
-type GetFnOnly = (globalState: State, ownState: State) => State
-type SetFn = (globalState: State, ownState: State) => State
-
-export type ComponentFactory = (streamsToSinks: StreamsToSinksFn) => ComponentClass<Props, State>
-
-export type UpdateGlobalFn = (state: State) => void
-
-export type UpdateFn = (reducer: Reducer, init?: boolean) => void
-
-export type SinksSources = {
-    state$: Observable<State>,
-    props$: Observable<Props>,
-    didMount: Subject<undefined>,
-    eventHandle: {
-        event: (eventName: string) => Observable<any>,
-        handle: (eventName: string) => (...args: any[]) => void
-    }
-} & Drivers
-
-export type Sinks = Observable<null | ReactElement<any>> | {
-    DOM: Observable<null | ReactElement<any>>
-    reducer?: Observable<Reducer>
-}
-
-export type StreamsToSinksFn = (sinksSources: SinksSources) => Sinks
-
-export type Lens = string | { get: GetFnOnly } | { get?: GetFn, set: SetFn }
-
-export type DiveSources = { lens?: Lens, state: State } | { lens: Lens, state?: State }
-
-export type StateStreamFactory = (state$: Observable<State>) => Observable<State>
-
-export default function dive(x?: DiveSources): ComponentFactory | void {
-    let state$: Subject<State>
-    let update: any
-    let myId: string
-    if (!x) {
-        return (streamsToSinks: StreamsToSinksFn) => componentFromStream({
-            initState: {},
-            streamsToSinks,
-            type: 'empty-lens',
-        })
-    }
-    if (!isPlainObject(x)) {
-        console.error('[dive] expected a object or nothing')
-        return
-    }
-
-    if (!('lens' in x) && !('state' in x)) {
-        console.error('[dive] object expected fields lens or state or both')
-        return
-    }
-
-    let { lens, state: initState } = x
-
-    initState = initState || {}
-    if (!isPlainObject(initState)) {
-        console.error('[dive] state must be a object')
-    }
-
-    if (!lens) {
-        return streamsToSinks => componentFromStream({
-            initState,
-            streamsToSinks,
-            type: 'empty-lens',
-        })
-    }
-    if (typeof lens == 'object') {
-        const get = lens['get']
-        const set = lens['set']
-        if (!get && !set) {
-            console.error('[dive] lens expected fields lens or state or both')
-            return
-        } else if (!get && set) {
-            const updateGlobal = (ownState: State) => {
-                let reducer = (state: State) => set(state, ownState)
-                globalState$.next(reducer)
-            }
-            return streamsToSinks => componentFromStream({
-                updateGlobal,
-                initState,
-                streamsToSinks,
-                type: 'only-set-lens',
-            })
-        } else if (!set && get) {
-            let stateStreamFactory = (ownState$: Observable<State>) => globalState$.pipe(
-                withLatestFrom(ownState$, (state, ownState) => (<GetFnOnly>get)(state, ownState || {})),
-            )
-            return streamsToSinks => componentFromStream({
-                stateStreamFactory,
-                initState,
-                streamsToSinks,
-                type: 'only-get-lens',
-            })
-        } else {
-            myId = uniqueId('dive')
-            // const handledInit = Object.assign(initState, lens.get(globalState))
-            update = (ownReducer: Reducer, init = false) => {
-                if (ownReducer == null) return  // 当下一个reducer为null时放弃更新
-                let reducer = null
-                if (typeof ownReducer == 'function') {
-                    reducer = (state: State) => {
-                        const prevState: State = (<GetFn>get)(state)
-                        const nextState: State = (<ReducerFn>ownReducer)(prevState)
-                        // 当下一个reducer函数返回值仍为state时放弃更新
-                        if (nextState == prevState) {
-                            actions$.next({ id: myId, unChanged: true })
-                            return state
-                        }
-                        const nextGlobalState = set(state, nextState)
-                        actions$.next({ id: myId, state, nextState: nextGlobalState })
-                        return nextGlobalState
-                    }
-                } else {
-                    // reducer为对象与setState同
-                    reducer = (state: State) => {
-                        const nextGlobalState = set(state, Object.assign({}, init ? {} : (<GetFn>get)(state), ownReducer))
-                        actions$.next({ id: myId, state, nextState: nextGlobalState })
-                        return nextGlobalState
-                    }
-                }
-                globalState$.next(reducer)
-            }
-            update(initState, true)
-            state$ = globalState$.pipe(
-                filter(state => {
-                    if (isEmpty(globalState)) return true
-                    return shallowEqual(state, globalState)
-                }),
-                map((<GetFn>get)),
-                distinctUntilChanged(shallowEqual),
-            ) as Subject<State>
-        }
-    } else if (typeof lens == 'string') {
-        myId = lens
-        update = (ownReducer: Reducer, init = false) => {
-            if (ownReducer == null) return
-            let reducer = null
-            if (typeof ownReducer == 'function') {
-                reducer = (state: State) => {
-                    const prevState = state[myId]
-                    const nextState = (<ReducerFn>ownReducer)(prevState)
-                    if (nextState == prevState) {
-                        actions$.next({ id: myId, unChanged: true })
-                        return state
-                    }
-                    const nextGlobalState = { ...state, [myId]: nextState }
-                    actions$.next({ id: myId, state, nextState: nextGlobalState })
-                    return nextGlobalState
-                }
+// 组件状态流
+function getState(state$: Observable<Reducer>): Subject<State> {
+    return state$.pipe(
+        scan((state, reducer) => {
+            //如果是函数使用函数处理获得新状态
+            if (typeof reducer == 'function') {
+                return reducer(state)
             } else {
-                reducer = (state: State) => {
-                    const nextGlobalState = { ...state, [myId]: Object.assign({}, init ? {} : state[myId], ownReducer) }
-                    actions$.next({ id: myId, state, nextState: nextGlobalState })
-                    return nextGlobalState
-                }
+                //如果是对象，合并为新对象
+                return Object.assign({}, state, reducer)
             }
-            globalState$.next(reducer)
-        }
-        update(initState, true)
-        state$ = globalState$.pipe(
-            filter(state => {
-                if (isEmpty(globalState)) return true
-                return shallowEqual(state, globalState)
-            }),
-            map(state => state[myId]),
+        }, {}),
+        //浅比较
+        distinctUntilChanged(shallowEqual),
+        //回放，处理多次订阅
+        shareReplay(1),
+    ) as Subject<State>
+}
+
+export default function dive(sources: Sources = { state: {}, globalState: [], globalEvent: [] }) {
+    const { state = {}, globalState = [], globalEvent = [] } = sources
+
+    if (!isPlainObject(state)) {
+        console.error('[dive] state expected a object value')
+        return
+    }
+    return (func: ComponentFromStream) => {
+        let currentGlobalState: State | null = null
+        //初始化时,从初始状态将全局状态pick出来
+        const globalState$ = new BehaviorSubject(
+            pick(state, globalState),
+        ).pipe(
             distinctUntilChanged(shallowEqual),
-        )  as Subject<State>
+            tap(state => currentGlobalState = state),
+            shareReplay(1),
+        ) as Subject<any>
+        //初始化时，生成全局事件的map
+        const globalEventMap = globalEvent.reduce((map, name) => {
+            //全局事件可能在组件订阅之前就触发，需要回放
+            map[name] = new Subject().pipe(shareReplay(1))
+            return map
+        }, {})
+        return class DiveComponent extends React.Component {
+            active = true
+            init = true
+            state = { vdom: null }
+            static globalState$ = globalState$
+            static globalEvent: GlobalEvent = {
+                handle: eventName => {
+                    return (...args) => args.length > 1 ?
+                        globalEventMap[eventName].next(args) : globalEventMap[eventName].next(args[0])
+                },
+                event: eventName => globalEventMap[eventName],
+            }
+            state$ = getState(new BehaviorSubject(Object.assign(state, currentGlobalState)))
+            eventHandleMap = {
+                ...globalEventMap,
+                didMount: new Subject(),
+            }
+            eventHandle: EventHandle = {
+                handle: eventName => {
+                    this.eventHandleMap[eventName] = this.eventHandleMap[eventName] || new Subject()
+                    return (...args) => {
+                        if (args.length > 1) {
+                            this.eventHandleMap[eventName].next(args)
+                        } else {
+                            this.eventHandleMap[eventName].next(args[0])
+                        }
+                    }
+                },
+                event: eventName => {
+                    this.eventHandleMap[eventName] = this.eventHandleMap[eventName] || new Subject()
+                    return this.eventHandleMap[eventName]
+                },
+                didMount: this.eventHandleMap['didMount'],
+            }
+            props$: Subject<Props>
+            reducer$: Observable<Reducer>
+            vdom$: Observable<ReactElement<any>>
+            subs: Subscription[] = []
+
+            constructor(props: Props) {
+                super(props)
+                this.props$ = new BehaviorSubject(props).pipe(
+                    distinctUntilChanged(shallowEqual),
+                    shareReplay(1),
+                ) as Subject<any>
+                const sinks = func({ state$: this.state$, props$: this.props$, eventHandle: this.eventHandle })
+                this.reducer$ = sinks.reducer || new Subject()
+                this.vdom$ = sinks.DOM || sinks
+            }
+
+
+            componentWillReceiveProps(nextProps: Props) {
+                this.props$.next(nextProps)
+            }
+
+            componentDidMount() {
+                this.subs = this.subs.concat(
+                    //状态更新时，同步全局状态,应为初始化时生成全局状态，跳过第一回
+                    this.state$.pipe(
+                        skip(1),
+                        takeWhile(() => this.active),
+                    ).subscribe(
+                        state => DiveComponent.globalState$.next(pick(state, globalState)),
+                        err => console.error(err),
+                    ),
+                    //如果同时存在多个本组件，组件生成时将全局状态更新到本组件
+                    DiveComponent.globalState$.pipe(
+                        takeWhile(() => this.active),
+                    ).subscribe(
+                        state => this.state$.next(state),
+                        err => console.error(err),
+                    ),
+                    //状态更新
+                    this.reducer$.pipe(
+                        takeWhile(() => this.active),
+                    ).subscribe(
+                        reducer => this.state$.next(reducer),
+                        err => console.error(err),
+                    ),
+                    //dom流更新dom
+                    this.vdom$.pipe(
+                        takeWhile(() => this.active),
+                    ).subscribe(
+                        vdom => this.setState({ vdom }, () => {
+                            //第一次dom为必是null，需要在react did时获取dom元素失效，所以在第一次setState后next did事件
+                            if (this.init) {
+                                this.init = false
+                                this.eventHandleMap['didMount'].next()
+                            }
+                        }),
+                        err => console.error(err),
+                    ),
+                )
+            }
+
+            componentWillUnmount() {
+                this.active = false
+                this.state$.complete()
+                this.subs.forEach(sub => {
+                    if (sub.unsubscribe) {
+                        sub.unsubscribe()
+                    }
+                })
+            }
+
+            render() {
+                return this.state.vdom
+            }
+        }
     }
 
-    return streamsToSinks => componentFromStream({ myId, state$, update, streamsToSinks })
 }
+
 
 export const applyDriver = _applyDrive
 export const setDevTool = _setDevTool
