@@ -1,9 +1,9 @@
 {
   "name": "divejs",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "",
   "scripts": {
-    "test": "jest",
+    "test": "jest --no-cache",
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -w -p tsconfig.json"
   },
@@ -26,6 +26,7 @@
     "lodash": "^4.17.11",
     "react-test-renderer": "^16.6.3",
     "rxjs": "^6.3.3",
+    "sinon": "^7.2.7",
     "typescript": "^3.3.3333"
   },
   "devDependencies": {

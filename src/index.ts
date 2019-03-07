@@ -6,7 +6,7 @@ import { isPlainObject, pick } from 'lodash'
 import * as React from 'react'
 import { ComponentFromStream, EventHandle, GlobalEvent, Props, Reducer, Sources, State } from './type'
 import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs'
-import { distinctUntilChanged, scan, shareReplay, skip, tap, takeWhile } from 'rxjs/operators'
+import { distinctUntilChanged, scan, shareReplay, skip, tap, takeWhile, take, filter, map } from 'rxjs/operators'
 import { ReactElement } from 'react'
 
 // 组件状态流
@@ -61,11 +61,17 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                     return (...args) => args.length > 1 ?
                         globalEventMap[eventName].next(args) : globalEventMap[eventName].next(args[0])
                 },
-                event: eventName => globalEventMap[eventName],
+                event: eventName => globalEventMap[eventName].pipe(
+                    map((...args: any[]) => {
+                        if (args[args.length - 1] == 'from inner') {
+                            args.pop()
+                            return args.length > 1 ? args : args[0]
+                        }
+                    }),
+                ),
             }
             state$ = getState(new BehaviorSubject(Object.assign(state, currentGlobalState)))
             eventHandleMap = {
-                ...globalEventMap,
                 didMount: new Subject(),
             }
             eventHandle: EventHandle = {
@@ -77,6 +83,8 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                         } else {
                             this.eventHandleMap[eventName].next(args[0])
                         }
+                        // console.log(args.concat('from inner'))
+                        if (globalEventMap[eventName]) globalEventMap[eventName].next(args.concat('from inner'))
                     }
                 },
                 event: eventName => {
@@ -108,27 +116,40 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
 
             componentDidMount() {
                 this.subs = this.subs.concat(
+                    globalEvent.map(eventName => {
+                        this.eventHandleMap[eventName] = this.eventHandleMap[eventName] || new Subject()
+                        return globalEventMap[eventName].pipe(
+                            filter((args: any[]) => {
+                                if (args && args[args.length - 1] == 'from inner') {
+                                    return false
+                                }
+                                return true
+                            }),
+                        )
+                            .subscribe((val: any) => this.eventHandleMap[eventName].next(val))
+                    }),
                     //状态更新时，同步全局状态,应为初始化时生成全局状态，跳过第一回
                     this.state$.pipe(
                         skip(1),
                         takeWhile(() => this.active),
                     ).subscribe(
                         state => DiveComponent.globalState$.next(pick(state, globalState)),
-                        err => console.error(err),
+                        err => console.error('[dive] private state to globalState$ update error', err),
                     ),
                     //如果同时存在多个本组件，组件生成时将全局状态更新到本组件
                     DiveComponent.globalState$.pipe(
+                        take(1),
                         takeWhile(() => this.active),
                     ).subscribe(
                         state => this.state$.next(state),
-                        err => console.error(err),
+                        err => console.error('[dive] globalState$ to private state update error', err),
                     ),
                     //状态更新
                     this.reducer$.pipe(
                         takeWhile(() => this.active),
                     ).subscribe(
                         reducer => this.state$.next(reducer),
-                        err => console.error(err),
+                        err => console.error('[dive] reducer new state error', err),
                     ),
                     //dom流更新dom
                     this.vdom$.pipe(
@@ -141,7 +162,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                                 this.eventHandleMap['didMount'].next()
                             }
                         }),
-                        err => console.error(err),
+                        err => console.error('[dive] vdom$ to vdom update error', err),
                     ),
                 )
             }
