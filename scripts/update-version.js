@@ -25,7 +25,7 @@ const run = async () => {
   packageJSON.version = addVersion(tep)
   await writeJson(packageJSONPath, packageJSON, { spaces: 2 })
 
-  exec('git commit -m "version update', { cwd: __dirname }, (error, stdout, stderr) => {
+  exec('git commit -m "version update"', { cwd: __dirname }, (error, stdout, stderr) => {
     if (error) {
       console.error(error)
       process.exit(1)
