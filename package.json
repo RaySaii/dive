@@ -6,7 +6,13 @@
     "test": "jest --no-cache",
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -w -p tsconfig.json",
-    "publish": "npm test && node ./scripts/publish.js"
+    "publish": "npm test && node ./scripts/publish.js",
+    "postversion": "(git-branch-is master && npm version || git-branch-is dev && npm version patch)"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run postversion"
+    }
   },
   "keywords": [
     "rxjs",
