@@ -6,7 +6,7 @@ const run = async () => {
   const packageJSONPath = join('.', 'package.json')
   const packageJSON = await readJson(packageJSONPath)
   let version = packageJSON.version
-  const name = exec('git rev-parse --abbrev-ref HEAD').toString().trim()
+  const name = execSync('git rev-parse --abbrev-ref HEAD').toString().trim()
   if (name == 'dev') {
     const tep = version.split('.').map(num => parseInt(num))
     const addVersion = (arr, str = '') => {
