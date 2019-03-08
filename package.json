@@ -1,17 +1,17 @@
 {
   "name": "divejs",
-  "version": "4.2.4",
+  "version": "4.0.4",
   "description": "",
   "scripts": {
     "test": "jest --no-cache",
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -w -p tsconfig.json",
     "publish": "npm test && node ./scripts/publish.js",
-    "postcommit": "git-branch-is dev && node ./scripts/update-version.js"
+    "change-version": "git-branch-is dev && node ./scripts/update-version.js"
   },
   "husky": {
     "hooks": {
-      "post-commit": "npm run postcommit"
+      "pre-push": "npm run change-version"
     }
   },
   "keywords": [
