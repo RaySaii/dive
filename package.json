@@ -1,6 +1,6 @@
 {
   "name": "divejs",
-  "version": "4.0.82",
+  "version": "4.0.83",
   "description": "",
   "scripts": {
     "test": "jest --no-cache",
