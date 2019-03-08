@@ -6,12 +6,11 @@
     "test": "jest --no-cache",
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -w -p tsconfig.json",
-    "publish": "npm test && node ./scripts/publish.js",
-    "change-version": "git-branch-is dev && node ./scripts/update-version.js"
+    "prepush": "node ./scripts/update-version.js"
   },
   "husky": {
     "hooks": {
-      "pre-push": "npm run change-version"
+      "pre-push": "npm run prepush"
     }
   },
   "keywords": [
