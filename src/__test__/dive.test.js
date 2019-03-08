@@ -251,6 +251,52 @@ describe('dive sharedState and sharedEvent', () => {
     done()
   })
 
+
+  it('should globalEvent params pass correct', done => {
+
+    const Foo = dive({
+      state: { foo: 1 },
+      globalEvent: ['set'],
+    })(({ state$, eventHandle }) => {
+      return {
+        DOM: state$.pipe(
+            map(state => {
+                  return <div>
+                    <h3>{JSON.stringify(state.foo)}</h3>
+                    <button className={'num'} onClick={() => eventHandle.handle('set')(1)}>set num</button>
+                    <button className={'two'} onClick={() => eventHandle.handle('set')(1, 1)}>set two</button>
+                    <button className={'arr'} onClick={() => eventHandle.handle('set')([1])}>set array</button>
+                  </div>
+                },
+            ),
+        ),
+        reducer: eventHandle.event('set').pipe(map(args => ({ foo: args }))),
+      }
+    })
+
+    const foo = create(<Foo/>)
+    const numButton = foo.root.findByProps({ className: 'num' })
+    const twoButton = foo.root.findByProps({ className: 'two' })
+    const arrButton = foo.root.findByProps({ className: 'arr' })
+    const val = foo.root.findByType('h3')
+    numButton.props.onClick()
+    expect(val.children).toEqual(['1'])
+    twoButton.props.onClick()
+    expect(val.children).toEqual(['[1,1]'])
+    arrButton.props.onClick()
+    expect(val.children).toEqual(['[1]'])
+    Foo.globalEvent.handle('set')(1)
+    expect(val.children).toEqual(['1'])
+    Foo.globalEvent.handle('set')(1, 1)
+    expect(val.children).toEqual(['[1,1]'])
+    Foo.globalEvent.handle('set')([1])
+    expect(val.children).toEqual(['[1]'])
+    Foo.globalEvent.handle('set')([1],[1,2])
+    expect(val.children).toEqual(['[[1],[1,2]]'])
+    done()
+  })
+
+
 })
 
 

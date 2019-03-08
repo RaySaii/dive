@@ -6,7 +6,17 @@ import { isPlainObject, pick } from 'lodash'
 import * as React from 'react'
 import { ComponentFromStream, EventHandle, GlobalEvent, Props, Reducer, Sources, State } from './type'
 import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs'
-import { distinctUntilChanged, scan, shareReplay, skip, tap, takeWhile, take, filter, map } from 'rxjs/operators'
+import {
+    distinctUntilChanged,
+    scan,
+    shareReplay,
+    skip,
+    tap,
+    takeWhile,
+    take,
+    filter,
+    map,
+} from 'rxjs/operators'
 import { ReactElement } from 'react'
 
 // 组件状态流
@@ -62,11 +72,15 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                         globalEventMap[eventName].next(args) : globalEventMap[eventName].next(args[0])
                 },
                 event: eventName => globalEventMap[eventName].pipe(
-                    map((...args: any[]) => {
-                        if (args[args.length - 1] == 'from inner') {
+                    map((args: any) => {
+                        //浅拷贝 全局事件来源于组件内部事件以及外部组件调用
+                        //组件内部事件传递的参数一定是数组且最后一项是'from inner'
+                        if (args instanceof Array && args[args.length - 1] == 'from inner') {
+                            args = [...args]
                             args.pop()
                             return args.length > 1 ? args : args[0]
                         }
+                        return args
                     }),
                 ),
             }
@@ -83,7 +97,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                         } else {
                             this.eventHandleMap[eventName].next(args[0])
                         }
-                        // console.log(args.concat('from inner'))
+                        //组件内部的事件，加一个标识
                         if (globalEventMap[eventName]) globalEventMap[eventName].next(args.concat('from inner'))
                     }
                 },
@@ -122,8 +136,9 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                     globalEvent.map(eventName => {
                         this.eventHandleMap[eventName] = this.eventHandleMap[eventName] || new Subject()
                         return globalEventMap[eventName].pipe(
-                            filter((args: any[]) => {
-                                if (args && args[args.length - 1] == 'from inner') {
+                            filter((args: any) => {
+                                //如果是来源于组件内部事件，不用同步
+                                if (args instanceof Array && args[args.length - 1] == 'from inner') {
                                     return false
                                 }
                                 return true
@@ -150,9 +165,10 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                     //状态更新
                     this.reducer$.pipe(
                         takeWhile(() => this.active),
-                    ).subscribe(
-                        reducer => this.state$.next(reducer),
-                        err => console.error('[dive] reducer new state error', err),
+                    ).subscribe(reducer => {
+                            this.state$.next(reducer)
+                        },
+                        err => console.error('[dive] reduce new state error', err),
                     ),
                     //dom流更新dom
                     this.vdom$.pipe(
