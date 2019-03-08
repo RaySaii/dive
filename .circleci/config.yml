@@ -27,5 +27,8 @@ jobs:
           name: Build
           command: npm run build
       - run:
+          name: Auth
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+      - run:
           name: Deploy
           command: npm publish
