@@ -8,11 +8,6 @@
     "dev": "tsc -w -p tsconfig.json",
     "prepush": "node ./scripts/update-version.js"
   },
-  "husky": {
-    "hooks": {
-      "pre-push": "npm run prepush"
-    }
-  },
   "keywords": [
     "rxjs",
     "react"
