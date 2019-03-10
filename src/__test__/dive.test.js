@@ -22,40 +22,38 @@ describe('dive sharedState and sharedEvent', () => {
       globalState: ['foo'],
       globalEvent: ['add'],
     })(({ state$, eventHandle }) => {
-      return {
-        DOM: state$.pipe(
-            map(state =>
-                <div>
-                  <h3>Foo Component:</h3>
-                  foo:<span>{state.foo}</span>
-                  <button onClick={eventHandle.handle('add')}>foo add event</button>
-                </div>,
-            ),
-        ),
-        reducer: eventHandle.event('add').pipe(mapTo(state => ({ ...state, foo: state.foo + 1 }))),
-      }
+      eventHandle.event('add').reduce(_ => state => {
+        state.foo += 1
+      })
+      return state$.pipe(
+          map(state =>
+              <div>
+                <h3>Foo Component:</h3>
+                foo:<span>{state.foo}</span>
+                <button onClick={eventHandle.handle('add')}>foo add event</button>
+              </div>,
+          ),
+      )
     })
 
 
     const Bar = dive({
       state: { bar: 2 },
     })(({ state$ }) => {
-      return {
-        DOM: combineLatest(
-            state$,
-            Foo.globalState$,
-            (state, fooState) => Object.assign({}, state, fooState),
-        ).pipe(
-            map(({ bar, foo }) => <div>
-              <h3>Bar Component:</h3>
-              bar:<span>{bar}</span>
-              foo:<i>{foo}</i>
-            </div>),
-        ),
-        reducer: Foo.globalEvent.event('add').pipe(
-            mapTo(state => ({ ...state, bar: state.bar + 1 })),
-        ),
-      }
+      Foo.globalEvent.event('add').reduce(_ => state => {
+        state.bar += 1
+      })
+      return combineLatest(
+          state$,
+          Foo.globalState$,
+          (state, fooState) => Object.assign({}, state, fooState),
+      ).pipe(
+          map(({ bar, foo }) => <div>
+            <h3>Bar Component:</h3>
+            bar:<span>{bar}</span>
+            foo:<i>{foo}</i>
+          </div>),
+      )
     })
 
     const FooC = <Foo/>
@@ -80,42 +78,39 @@ describe('dive sharedState and sharedEvent', () => {
       globalState: ['foo'],
       globalEvent: ['add'],
     })(({ state$, eventHandle }) => {
-      return {
-        DOM: state$.pipe(
-            map(state =>
-                <div>
-                  <h3>Foo Component:</h3>
-                  foo:{state.foo}
-                  <button className={'add'} onClick={eventHandle.handle('add')}>foo add event</button>
-                </div>,
-            ),
-        ),
-        reducer: merge(
-            eventHandle.event('add').pipe(mapTo(state => ({ ...state, foo: state.foo + 1 }))),
-        ),
-      }
+      eventHandle.event('add').reduce(_ => state => {
+        state.foo += 1
+      })
+
+      return state$.pipe(
+          map(state =>
+              <div>
+                <h3>Foo Component:</h3>
+                foo:{state.foo}
+                <button className={'add'} onClick={eventHandle.handle('add')}>foo add event</button>
+              </div>,
+          ),
+      )
     })
 
     const Bar = dive({
       state: { bar: 2 },
     })(({ state$ }) => {
-      return {
-        DOM: combineLatest(
-            state$,
-            Foo.globalState$,
-            (state, fooState) => Object.assign({}, state, fooState),
-        ).pipe(
-            map(({ bar, foo }) => {
-              return <div>
-                <h3>Bar Component:</h3>
-                bar:<h1 className={'bar'}>{bar}</h1>
-              </div>
-            }),
-        ),
-        reducer: Foo.globalEvent.event('add').pipe(
-            mapTo(state => ({ ...state, bar: state.bar + 1 })),
-        ),
-      }
+      Foo.globalEvent.event('add').reduce(_ => state => {
+        state.bar += 1
+      })
+      return combineLatest(
+          state$,
+          Foo.globalState$,
+          (state, fooState) => Object.assign({}, state, fooState),
+      ).pipe(
+          map(({ bar, foo }) => {
+            return <div>
+              <h3>Bar Component:</h3>
+              bar:<h1 className={'bar'}>{bar}</h1>
+            </div>
+          }),
+      )
     })
 
     const FooC = create(<Foo/>)
@@ -135,35 +130,33 @@ describe('dive sharedState and sharedEvent', () => {
       state: { foo: 1 },
       globalEvent: ['add'],
     })(({ state$, eventHandle }) => {
-      return {
-        DOM: state$.pipe(
-            map(state =>
-                <div>
-                  <h3>Foo Component:</h3>
-                  foo:<h1>{state.foo}</h1>
-                  <button onClick={eventHandle.handle('add')}>foo add event</button>
-                </div>,
-            ),
-        ),
-        reducer: merge(
-            eventHandle.event('add').pipe(mapTo(state => ({ ...state, foo: state.foo + 1 }))),
-        ),
-      }
+
+      eventHandle.event('add').reduce(_ => state => {
+        state.foo += 1
+      })
+
+      return state$.pipe(
+          map(state =>
+              <div>
+                <h3>Foo Component:</h3>
+                foo:<h1>{state.foo}</h1>
+                <button onClick={eventHandle.handle('add')}>foo add event</button>
+              </div>,
+          ),
+      )
     })
 
     const Index = dive()(({ state$, eventHandle }) => {
-      return {
-        DOM: combineLatest(
-            state$,
-            Foo.globalState$,
-        ).pipe(
-            map(([state, fooState]) => {
-              return <div>
-                <button onClick={Foo.globalEvent.handle('add')}>+</button>
-              </div>
-            }),
-        ),
-      }
+      return combineLatest(
+          state$,
+          Foo.globalState$,
+      ).pipe(
+          map(([state, fooState]) => {
+            return <div>
+              <button onClick={Foo.globalEvent.handle('add')}>+</button>
+            </div>
+          }),
+      )
     })
 
 
@@ -194,43 +187,42 @@ describe('dive sharedState and sharedEvent', () => {
       },
       globalEvent: ['add'],
     })(({ state$, eventHandle }) => {
-      return {
-        DOM: combineLatest(
-            state$,
-            Foo.globalState$,
-        ).pipe(
-            map(([state, fooState]) => {
-              return <div>
-                <h2>value:{state.value}</h2>
-                <h1>{fooState.foo}</h1>
-                <button onClick={eventHandle.handle('add')}>+</button>
-              </div>
-            }),
-        ),
-        reducer: merge(
-            eventHandle.event('add').pipe(mapTo(state => ({ ...state, value: state.value + 1 }))),
-            eventHandle.event('sub').pipe(mapTo(state => ({ ...state, value: state.value - 1 }))),
-        ),
-      }
+      eventHandle.event('add').reduce(_ => state => {
+        state.value += 1
+      })
+      eventHandle.event('sub').reduce(_ => state => {
+        state.value -= 1
+      })
+      return combineLatest(
+          state$,
+          Foo.globalState$,
+      ).pipe(
+          map(([state, fooState]) => {
+            return <div>
+              <h2>value:{state.value}</h2>
+              <h1>{fooState.foo}</h1>
+              <button onClick={eventHandle.handle('add')}>+</button>
+            </div>
+          }),
+      )
     })
 
     const Foo = dive({
       state: { foo: 1 },
       globalState: ['foo'],
     })(({ state$, eventHandle }) => {
-      return {
-        DOM: state$.pipe(
-            map(state =>
-                <div>
-                  <h3>Foo Component:</h3>
-                  foo:{state.foo}
-                </div>,
-            ),
-        ),
-        reducer: merge(
-            Index.globalEvent.event('add').pipe(mapTo(state => ({ ...state, foo: state.foo + 1 }))),
-        ),
-      }
+      Index.globalEvent.event('add').reduce(_ => state => {
+        state.foo += 1
+      })
+
+      return state$.pipe(
+          map(state =>
+              <div>
+                <h3>Foo Component:</h3>
+                foo:{state.foo}
+              </div>,
+          ),
+      )
     })
 
     const IndexC = create(<Index/>)
@@ -258,20 +250,20 @@ describe('dive sharedState and sharedEvent', () => {
       state: { foo: 1 },
       globalEvent: ['set'],
     })(({ state$, eventHandle }) => {
-      return {
-        DOM: state$.pipe(
-            map(state => {
-                  return <div>
-                    <h3>{JSON.stringify(state.foo)}</h3>
-                    <button className={'num'} onClick={() => eventHandle.handle('set')(1)}>set num</button>
-                    <button className={'two'} onClick={() => eventHandle.handle('set')(1, 1)}>set two</button>
-                    <button className={'arr'} onClick={() => eventHandle.handle('set')([1])}>set array</button>
-                  </div>
-                },
-            ),
-        ),
-        reducer: eventHandle.event('set').pipe(map(args => ({ foo: args }))),
-      }
+      eventHandle.event('set').reduce(args => state => {
+        state.foo = args
+      })
+      return state$.pipe(
+          map(state => {
+                return <div>
+                  <h3>{JSON.stringify(state.foo)}</h3>
+                  <button className={'num'} onClick={() => eventHandle.handle('set')(1)}>set num</button>
+                  <button className={'two'} onClick={() => eventHandle.handle('set')(1, 1)}>set two</button>
+                  <button className={'arr'} onClick={() => eventHandle.handle('set')([1])}>set array</button>
+                </div>
+              },
+          ),
+      )
     })
 
     const foo = create(<Foo/>)
@@ -291,7 +283,7 @@ describe('dive sharedState and sharedEvent', () => {
     expect(val.children).toEqual(['[1,1]'])
     Foo.globalEvent.handle('set')([1])
     expect(val.children).toEqual(['[1]'])
-    Foo.globalEvent.handle('set')([1],[1,2])
+    Foo.globalEvent.handle('set')([1], [1, 2])
     expect(val.children).toEqual(['[[1],[1,2]]'])
     done()
   })

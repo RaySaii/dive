@@ -3,8 +3,17 @@ import _shallowEqual from './shallowEqual'
 import { _And, _debug, _Or, _pickByKey, _shouldUpdate } from './utils'
 import IHTTP from './http'
 import { isPlainObject, pick } from 'lodash'
-import * as React from 'react'
-import { ComponentFromStream, EventHandle, GlobalEvent, Props, Reducer, Sources, State } from './type'
+import {
+    ComponentFromStream,
+    EventHandle,
+    GlobalEvent,
+    IDiveComponent,
+    Props,
+    Reducer,
+    ReducerFn,
+    Sources,
+    State,
+} from './type'
 import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs'
 import {
     distinctUntilChanged,
@@ -18,19 +27,21 @@ import {
     map,
 } from 'rxjs/operators'
 import { ReactElement } from 'react'
+import produce from 'immer'
+
+declare module 'rxjs' {
+    interface Observable<T> {
+        reduce: (fn: (value: T) => ReducerFn) => void
+    }
+}
 
 // 组件状态流
 function getState(state$: Observable<Reducer>): Subject<State> {
     return state$.pipe(
-        scan((state, reducer) => {
-            //如果是函数使用函数处理获得新状态
-            if (typeof reducer == 'function') {
-                return reducer(state)
-            } else {
-                //如果是对象，合并为新对象
-                return Object.assign({}, state, reducer)
-            }
-        }, {}),
+        scan((state: State, reducer: any) => {
+            if (typeof reducer == 'function') return reducer(state)
+            return state
+        }),
         //浅比较
         distinctUntilChanged(shallowEqual),
         //回放，处理多次订阅
@@ -40,7 +51,6 @@ function getState(state$: Observable<Reducer>): Subject<State> {
 
 export default function dive(sources: Sources = { state: {}, globalState: [], globalEvent: [] }) {
     const { state = {}, globalState = [], globalEvent = [] } = sources
-
     if (!isPlainObject(state)) {
         console.error('[dive] state expected a object value')
         return
@@ -61,7 +71,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
             map[name] = new Subject().pipe(shareReplay(1))
             return map
         }, {})
-        return class DiveComponent extends React.Component {
+        return class DiveComponent extends IDiveComponent {
             active = true
             init = true
             state = { vdom: null }
@@ -108,19 +118,27 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                 didMount: this.eventHandleMap['didMount'],
             }
             props$: Subject<Props>
-            reducer$: Observable<Reducer>
             vdom$: Observable<ReactElement<any>>
             subs: Subscription[] = []
+            reducers: any[] = []
 
             constructor(props: Props) {
                 super(props)
+                const _this = this
+                Observable.prototype.reduce = function (reducer) {
+                    let activeSub = () => {
+                        return this.subscribe((val: any) => {
+                            _this.state$.next(produce(reducer(val)))
+                        })
+                    }
+                    _this.reducers.push(activeSub)
+                }
                 this.props$ = new BehaviorSubject(props).pipe(
                     distinctUntilChanged(shallowEqual),
                     shareReplay(1),
                 ) as Subject<any>
-                const sinks = func({ state$: this.state$, props$: this.props$, eventHandle: this.eventHandle })
-                this.reducer$ = sinks.reducer || new Subject()
-                this.vdom$ = sinks.DOM || sinks
+                const DOM = func({ state$: this.state$, props$: this.props$, eventHandle: this.eventHandle })
+                this.vdom$ = DOM
             }
 
             shouldComponentUpdate(_: any, nextState: Readonly<State>): boolean {
@@ -162,14 +180,8 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                         state => this.state$.next(state),
                         err => console.error('[dive] globalState$ to private state update error', err),
                     ),
-                    //状态更新
-                    this.reducer$.pipe(
-                        takeWhile(() => this.active),
-                    ).subscribe(reducer => {
-                            this.state$.next(reducer)
-                        },
-                        err => console.error('[dive] reduce new state error', err),
-                    ),
+                    //激活reducer的订阅
+                    this.reducers.map(sub => sub()),
                     //dom流更新dom
                     this.vdom$.pipe(
                         takeWhile(() => this.active),

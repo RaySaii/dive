@@ -41,7 +41,7 @@ export function _debug(message: string, style = '') {
 }
 
 
-export function _shouldUpdate(compare: (object: { previous: any, current: any }) => boolean) {
+export function _shouldUpdate(compare: (previous: any, current: any) => boolean) {
     // notice that we return a function here
     let prev: any
     let init: boolean = true
@@ -55,7 +55,7 @@ export function _shouldUpdate(compare: (object: { previous: any, current: any })
                 }
                 let temp = cloneDeep(prev)
                 prev = value
-                return compare({ previous: temp, current: value })
+                return compare(temp, value)
             }),
         ).subscribe(value => {
                 try {

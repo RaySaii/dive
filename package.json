@@ -16,6 +16,8 @@
   "license": "ISC",
   "main": "./esm/index.js",
   "peerDependencies": {
+    "rxjs": "^6.4.0",
+    "immer": "^2.1.1",
     "react": "^0.14.0 || ^15.0.0-0 || ^16.0.0-0"
   },
   "files": [
@@ -24,8 +26,9 @@
   "typings": "esm/index.d.ts",
   "sideEffects": false,
   "dependencies": {
+    "immer": "^2.1.1",
     "lodash": "^4.17.11",
-    "rxjs": "^6.3.3"
+    "rxjs": "^6.4.0"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.122",
@@ -35,7 +38,7 @@
     "cross-env": "^5.2.0",
     "fs-extra": "^7.0.1",
     "git-branch-is": "^2.1.0",
-    "jest": "^24.1.0",
+    "jest": "^24.3.1",
     "react": "^16.8.4",
     "react-dom": "^16.8.4",
     "react-test-renderer": "^16.8.4",

@@ -19,40 +19,36 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import dive from 'divejs'
 import {map,mapTo} from 'rxjs/operators'
-// ...
+// ...javascript
 const Counter=dive({state:{count:1}})(({state$,eventHandle})=>{
-    const count$=eventHandle.event('add').pipe(
-        // reducer
-    	mapTo(state=>({...state,count:state.count+1}))
+  // update state 
+    eventHandle.event('add').reduce(
+        _=> state=>{
+          //this function will be use in immer produce
+          state.count+=1
+        }
     )
-    return {
-       // dive creates a React component by mapping an this stream of state$ to a stream of React nodes (vdom).
-      DOM:state$.pipe(
+    // dive creates a React component by mapping an this stream of state$ to a stream of React nodes (vdom).
+    return state$.pipe(
             map(state=>(
-              	    <div>
-                          {state.count}
-                          <button onClick={eventHandle.handle('add')}>
-                              +
-                          </button>
-                      </div>
+                <div>
+                  {state.count}
+                  <button onClick={eventHandle.handle('add')}>
+                      +
+                  </button>
+                </div>
             ))
-      ),
-      // update state (pass by stream of reducer like setState)
-      // (more stream :merge(...streams))
-      reducer:count$
-    }
+      )
 })
 const App=dive({state:{a:1}})(({state$})=>{
-    return {
-      DOM:state$.pipe(
-              	map((state)=>(
-                      <div>
-                      	<div>{state.a}</div>
-                      	<Counter/>
-                      </div>
-                  ))
-              )
-    }
+    return state$.pipe(
+            map((state)=>(
+                  <div>
+                    <div>{state.a}</div>
+                    <Counter/>
+                  </div>
+              ))
+           )
 })
 
 ReactDOM.render(
@@ -63,7 +59,7 @@ ReactDOM.render(
 
 #### How to share data among components?
 
-```js
+```javascript
 const Foo=dive({
     state:{foo:1},
     globalState:['foo']
@@ -72,51 +68,49 @@ const Foo=dive({
 const Bar=dive({
     state:{bar:2},
 })(({state$})=>{
-  return {
-    DOM:combineLatest(
+  return combineLatest(
         state$,
         Foo.globalState$,
         (state,fooState)=>Object.assign({},state,globalState)
     ).pipe(
         map(({bar,foo})=><div>bar:{bar} foo:{foo}</div>)
     )
-  }
 })
 
 ``` 
 
 #### How to share event among components?
-```js
+```javascript
 const Foo=dive({
     state:{foo:1},
     globalState:['foo'],
     globalEvent:['add']
 })(({state$,eventHandle})=>{
-  return {
-    DOM:state$.pipe(
+  eventHandle.event('add').reduce(_=>state=>{
+      state.foo+=1
+  })
+  return state$.pipe(
         map(state=>
           <div>{state.foo}<button onClick={eventHandle.handle('add')}>+</button></div>
         )
-    ),
-    reducer:eventHandle.event('add').pipe(mapTo(state=>({...state,foo:state.foo+1})))
-  }
+    )
 })
 
 const Bar=dive({
     state:{bar:2},
 })(({state$})=>{
-  return {
-    DOM:combineLatest(
+  Foo.globalEvent.event('add').reduce(
+      _ => state=>{
+        state.bar+=1
+      }
+  )
+  return combineLatest(
         state$,
         Foo.globalState$,
         (state,fooState)=>Object.assign({},state,fooState)
     ).pipe(
         map(({bar,foo})=><div>bar:{bar} foo:{foo}</div>)
-    ),
-    reducer:Foo.globalEvent.event('add').pipe(
-        mapTo(state=>({...state,bar:state.bar+1}))
     )
-  }
 })
 
 ``` 
@@ -139,7 +133,7 @@ It returns function which expects a state *stream* and eventHandle which can tra
 **Returns:**
 
 
-*`(Function)`* which expect `{state$,props$,eventHandle}`,and return `{DOM:Observable<ReactNode>,reducer?:Observable<ReducerFn|Object>}`
+*`(Function)`* which expect `{state$,props$,eventHandle}`,and return `Observable<ReactNode>`
 
 - `state$` state stream.
 - `props$` props stream.
@@ -159,10 +153,10 @@ It returns function which expects a state *stream* and eventHandle which can tra
   import {fromHttp} from 'divejs/utils'
   //...
   const fetchData=params=>fromHttp(fetch(`some-url?params=${params}`).then(res=>res.json()))
-  const some$=eventHandle.event('some').pipe(
+  eventHandle.event('some').pipe(
       switchMap(fetchData),
-      map(some=>state=>({...state,some}))
   )
+    .reduce(some=>state=>{state.some=some})
   // -> state:{some:{data:undefined,status:'pending'}}
   // -> state:{some:{data:someData,status:'fulfilled}}
   //...
@@ -176,18 +170,16 @@ It returns function which expects a state *stream* and eventHandle which can tra
   ```js
   import {shouldUpdate} from 'divejs'
   ...
-  return {
-    DOM:combineLatest(
+  return combineLatest(
       props$,
       state$,
       (props,state)=>Object.assign({},props,state)
     ).pipe(
       shouldUpdate(({previous,current})=>{
-        ...some compare
+        //...some compare
         return boolean
       })  
     )
-  }
   
   ```
 

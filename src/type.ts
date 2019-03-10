@@ -1,5 +1,5 @@
 import { Observable, Subject } from 'rxjs'
-import { ReactElement } from 'react'
+import React, { ReactElement } from 'react'
 
 export type State = {
     [key: string]: any
@@ -31,10 +31,7 @@ export type StreamSources = {
     eventHandle: EventHandle
 }
 
-export type Sinks = {
-    DOM: Observable<ReactElement<any>>,
-    reducer?: Observable<Reducer>
-}
+export type Sinks = Observable<ReactElement<any>>
 
 export type ComponentFromStream = (streamSources: StreamSources) => Sinks
 
@@ -46,4 +43,9 @@ export enum HttpStatus {
     FRESH = 'fresh',
     PENDING = 'pending',
     FULFILLED = 'fulfilled'
+}
+
+export class IDiveComponent extends React.Component {
+    static globalState$: Observable<State>
+    static globalEvent: GlobalEvent
 }
