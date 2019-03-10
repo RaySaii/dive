@@ -19,7 +19,6 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import dive from 'divejs'
 import {map,mapTo} from 'rxjs/operators'
-// ...javascript
 const Counter=dive({state:{count:1}})(({state$,eventHandle})=>{
   // update state 
     eventHandle.event('add').reduce(
@@ -175,7 +174,7 @@ It returns function which expects a state *stream* and eventHandle which can tra
       state$,
       (props,state)=>Object.assign({},props,state)
     ).pipe(
-      shouldUpdate(({previous,current})=>{
+      shouldUpdate((previous,current)=>{
         //...some compare
         return boolean
       })  
