@@ -13,8 +13,7 @@ const run = async () => {
       if (arr.length == 1) {
         return arr[0] + 1 + str
       }
-      arr[arr.length - 1] = arr[arr.length - 1] + 1
-      if (arr[arr.length - 1] < 10) {
+      if (arr[arr.length - 1] < 9) {
         return arr.join('.') + str
       } else {
         arr.pop()

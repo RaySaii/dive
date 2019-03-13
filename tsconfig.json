@@ -17,6 +17,7 @@
     "skipLibCheck": true,
     "declaration": true,
     "esModuleInterop": true,
+    "rootDir": "src",
     "outDir": "./esm",
     "lib": [
       "es7",
