@@ -288,7 +288,6 @@ describe('dive sharedState and sharedEvent', () => {
     done()
   })
 
-
 })
 
 
