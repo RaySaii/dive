@@ -97,6 +97,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
             state$ = getState(new BehaviorSubject(Object.assign(state, currentGlobalState)))
             eventHandleMap = {
                 didMount: new Subject(),
+                willUnmount: new Subject(),
             }
             eventHandle: EventHandle = {
                 handle: eventName => {
@@ -116,6 +117,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                     return this.eventHandleMap[eventName]
                 },
                 didMount: this.eventHandleMap['didMount'],
+                willUnmount: this.eventHandleMap['willUnmount'],
             }
             props$: Subject<Props>
             vdom$: Observable<ReactElement<any>>
@@ -200,12 +202,14 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
 
             componentWillUnmount() {
                 this.active = false
-                this.state$.complete()
                 this.subs.forEach(sub => {
                     if (sub.unsubscribe) {
                         sub.unsubscribe()
                     }
                 })
+                //complete 会使next失效，但是仍作为流
+                this.state$.complete()
+                this.eventHandleMap.willUnmount.next()
             }
 
             render() {

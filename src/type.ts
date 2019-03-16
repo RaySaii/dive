@@ -20,10 +20,11 @@ type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
 export type EventHandle = {
     event: (eventName: string) => Subject<any>,
     handle: (eventName: string) => (...args: any[]) => void
-    didMount: Subject<any>
+    didMount: Subject<any>,
+    willUnmount: Subject<any>,
 }
 
-export type GlobalEvent = Omit<EventHandle, 'didMount'>
+export type GlobalEvent = Omit<EventHandle, 'didMount' | 'willUnmount'>
 
 export type StreamSources = {
     state$: Observable<State>,

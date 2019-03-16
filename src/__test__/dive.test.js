@@ -288,6 +288,68 @@ describe('dive sharedState and sharedEvent', () => {
     done()
   })
 
+  it('should eventHandle.willUnmount produce a undefined value when unmount', () => {
+    let test = 1
+    const Foo = dive()(({ eventHandle, state$ }) => {
+      eventHandle.willUnmount.subscribe(value => {
+        test = value
+      })
+      return state$.pipe(
+          map(state => {
+            return <div>foo</div>
+          }),
+      )
+    })
+    const FooC = create(<Foo/>)
+    expect(test).toEqual(1)
+    FooC.unmount()
+    expect(test).toEqual(undefined)
+  })
+
+  it('should state$ be active when willUnmount', () => {
+    let test = 1
+    const Foo = dive(
+        { state: { foo: 'ok' } },
+    )(({ eventHandle, state$ }) => {
+      eventHandle.willUnmount
+          .pipe(switchMapTo(state$))
+          .subscribe(state => {
+            test = state.foo
+          })
+      return state$.pipe(
+          map(state => {
+            return <div>foo</div>
+          }),
+      )
+    })
+    const FooC = create(<Foo/>)
+    expect(test).toEqual(1)
+    FooC.unmount()
+    expect(test).toEqual('ok')
+  })
+
+  it('should willUnmount can not reduce new state', () => {
+    let test = 1
+    const Foo = dive(
+        { state: { foo: 'ok' } },
+    )(({ eventHandle, state$ }) => {
+      eventHandle.willUnmount
+          .reduce(_ => state => {
+            state.foo = 'new'
+          })
+      return state$.pipe(
+          map(state => {
+            test = state.foo
+            return <div>{state.foo}</div>
+          }),
+      )
+    })
+    const FooC = create(<Foo/>)
+    expect(test).toEqual('ok')
+    FooC.unmount()
+    expect(test).toEqual('ok')
+  })
+
 })
 
 
