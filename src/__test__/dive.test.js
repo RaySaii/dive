@@ -350,6 +350,34 @@ describe('dive sharedState and sharedEvent', () => {
     expect(test).toEqual('ok')
   })
 
+  it('should sync state and globalState when willUnmount', () => {
+    let test = 1
+    const Foo = dive(
+        {
+          state: { foo: 'ok' },
+          globalState: ['foo'],
+        },
+    )(({ eventHandle, state$ }) => {
+      eventHandle.willUnmount
+          .reduce(_ => state => {
+            state.foo = 'new'
+          })
+      return state$.pipe(
+          map(state => {
+            test = state.foo
+            return <div>{state.foo}</div>
+          }),
+      )
+    })
+    Foo.globalState$.subscribe(state => {
+      test = state.foo
+    })
+    const FooC = create(<Foo/>)
+    expect(test).toEqual('ok')
+    FooC.unmount()
+    expect(test).toEqual('new')
+  })
+
 })
 
 

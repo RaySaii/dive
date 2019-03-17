@@ -122,6 +122,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
             props$: Subject<Props>
             vdom$: Observable<ReactElement<any>>
             subs: Subscription[] = []
+            vdomSub: Subscription | null = null
             reducers: any[] = []
 
             constructor(props: Props) {
@@ -185,22 +186,24 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                     //激活reducer的订阅
                     this.reducers.map(sub => sub()),
                     //dom流更新dom
-                    this.vdom$.pipe(
-                        takeWhile(() => this.active),
-                    ).subscribe(
-                        vdom => this.setState({ vdom }, () => {
-                            //第一次dom为必是null，需要在react did时获取dom元素失效，所以在第一次setState后next did事件
-                            if (this.init) {
-                                this.init = false
-                                this.eventHandleMap['didMount'].next()
-                            }
-                        }),
-                        err => console.error('[dive] vdom$ to vdom update error', err),
-                    ),
+                )
+                this.vdomSub = this.vdom$.pipe(
+                    takeWhile(() => this.active),
+                ).subscribe(
+                    vdom => this.setState({ vdom }, () => {
+                        //第一次dom为必是null，需要在react did时获取dom元素失效，所以在第一次setState后next did事件
+                        if (this.init) {
+                            this.init = false
+                            this.eventHandleMap['didMount'].next()
+                        }
+                    }),
+                    err => console.error('[dive] vdom$ to vdom update error', err),
                 )
             }
 
             componentWillUnmount() {
+                this.vdomSub!.unsubscribe()
+                this.eventHandleMap.willUnmount.next()
                 this.active = false
                 this.subs.forEach(sub => {
                     if (sub.unsubscribe) {
@@ -209,7 +212,6 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                 })
                 //complete 会使next失效，但是仍作为流
                 this.state$.complete()
-                this.eventHandleMap.willUnmount.next()
             }
 
             render() {
