@@ -8,6 +8,7 @@ type IHttpResponse = {
     status: HttpStatus
 }
 
+/** @deprecated  use xhr operator instead */
 class IHTTP {
     RESOPNSE$$: Subject<Observable<IHttpResponse> | Observable<never>>
     fromHttp: (promise: Promise<any>) => Observable<IHttpResponse>

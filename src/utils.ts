@@ -1,6 +1,6 @@
-import { tap, map, distinctUntilChanged } from 'rxjs/operators'
-import { Observable } from 'rxjs'
+import { tap, map, distinctUntilChanged, switchMap } from 'rxjs/operators'
 import { isPlainObject, pick } from 'lodash'
+import { from, merge, of } from 'rxjs'
 
 export function _And(...rest: any[]): boolean {
     for (let item of rest) {
@@ -40,48 +40,24 @@ export function _debug(message: string, style = '') {
     )
 }
 
+export function _xhr(func: (...args: any[]) => Promise<any>) {
+    const request = (...args: any[]) => from(func(...args))
+    return switchMap((...args: any[]) => merge(
+        of([undefined, true]),
+        request(...args).pipe(map(data => [data, false])),
+    ))
+}
 
 export function _shouldUpdate(compare: (previous: any, current: any) => boolean) {
-    // notice that we return a function here
-    return (source: Observable<any>) => Observable.create((subscriber: any) => {
-        const subscription = source.pipe(
-            distinctUntilChanged((prev, cur) => !compare(prev, cur)),
-        ).subscribe(value => {
-                try {
-                    subscriber.next(value)
-                } catch (err) {
-                    subscriber.error(err)
-                }
-            },
-            err => subscriber.error(err),
-            () => subscriber.complete(),
-        )
-
-        return subscription
-    })
+    return distinctUntilChanged((prev, cur) => !compare(prev, cur))
 }
 
 export function _pickByKey(...args: any[]) {
-    return (source: any) => Observable.create((subscriber: any) => {
-        const subscription = source.pipe(
-            map(value => {
-                if (!isPlainObject(value)) {
-                    throw new TypeError('pickByKey can only use for Object value')
-                }
-                return pick(value, ...args)
-            }),
-        ).subscribe((value: any) => {
-                try {
-                    subscriber.next(value)
-                } catch (err) {
-                    subscriber.error(err)
-                }
-            },
-            (err: any) => subscriber.error(err),
-            () => subscriber.complete(),
-        )
-
-        return subscription
+    return map(value => {
+        if (!isPlainObject(value)) {
+            throw new TypeError('pickByKey can only use for Object value')
+        }
+        return pick(value, ...args)
     })
 }
 

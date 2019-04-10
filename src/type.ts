@@ -22,9 +22,10 @@ export type EventHandle = {
     handle: (eventName: string) => (...args: any[]) => void
     didMount: Subject<any>,
     willUnmount: Subject<any>,
+    didUpdate: Subject<any>,
 }
 
-export type GlobalEvent = Omit<EventHandle, 'didMount' | 'willUnmount'>
+export type GlobalEvent = Omit<EventHandle, 'didMount' | 'willUnmount' | 'didUpdate'>
 
 export type StreamSources = {
     state$: Observable<State>,

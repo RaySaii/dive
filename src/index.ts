@@ -1,6 +1,6 @@
 import { IHttpComponent } from './HttpComponent'
 import _shallowEqual from './shallowEqual'
-import { _And, _debug, _Or, _pickByKey, _shouldUpdate } from './utils'
+import { _And, _debug, _Or, _pickByKey, _shouldUpdate, _xhr } from './utils'
 import IHTTP from './http'
 import { isPlainObject, pick } from 'lodash'
 import {
@@ -98,6 +98,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
             eventHandleMap = {
                 didMount: new Subject(),
                 willUnmount: new Subject(),
+                didUpdate: new Subject(),
             }
             eventHandle: EventHandle = {
                 handle: eventName => {
@@ -118,6 +119,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                 },
                 didMount: this.eventHandleMap['didMount'],
                 willUnmount: this.eventHandleMap['willUnmount'],
+                didUpdate: this.eventHandleMap['didUpdate'],
             }
             props$: Subject<Props>
             vdom$: Observable<ReactElement<any>>
@@ -150,6 +152,10 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
 
             componentWillReceiveProps(nextProps: Props) {
                 this.props$.next(nextProps)
+            }
+
+            componentDidUpdate() {
+                this.eventHandleMap['didUpdate'].next()
             }
 
             componentDidMount() {
@@ -242,3 +248,5 @@ export const debug = _debug
 export const shouldUpdate = _shouldUpdate
 
 export const pickByKey = _pickByKey
+
+export const xhr = _xhr
