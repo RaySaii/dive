@@ -40,12 +40,17 @@ export function _debug(message: string, style = '') {
     )
 }
 
-export function _xhr(func: (...args: any[]) => Promise<any>) {
+export function _xhrWithStatus(func: (...args: any[]) => Promise<any>) {
     const request = (...args: any[]) => from(func(...args))
     return switchMap((...args: any[]) => merge(
         of([undefined, true]),
         request(...args).pipe(map(data => [data, false])),
     ))
+}
+
+export function _xhr(func: (...args: any[]) => Promise<any>) {
+    const request = (...args: any[]) => from(func(...args))
+    return switchMap(request)
 }
 
 export function _shouldUpdate(compare: (previous: any, current: any) => boolean) {
