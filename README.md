@@ -140,28 +140,26 @@ It returns function which expects a state *stream* and eventHandle which can tra
 
 #### dive/utils
 
-- `fromHttp` expected a promise,returns a stream. Everytime will produce two value.
-
-  first:  `{data:undefined,status:'pending'}`,
-
-  second:  `{data:some,status:'fulfilled'}`.
+- `xhr` expected a function return promise. Everytime will produce a array.
 
   example:
 
   ```javascript
-  import {fromHttp} from 'divejs/utils'
+  import {xhrWithStatus} from 'divejs'
   //...
-  const fetchData=params=>fromHttp(fetch(`some-url?params=${params}`).then(res=>res.json()))
   eventHandle.event('some').pipe(
-      switchMap(fetchData),
+      xhrWithStatus(params=>fetch(`some-url?params=${params}`).then(res=>res.json())),
   )
-    .reduce(some=>state=>{state.some=some})
-  // -> state:{some:{data:undefined,status:'pending'}}
-  // -> state:{some:{data:someData,status:'fulfilled}}
+    .reduce(([data,loading])=>state=>{
+        state.data=data
+        state.loading=loading
+  })
+  // -> state:{data:undefined,loading:true}
+  // -> state:{data:someData,loading:false}
   //...
   ```
 
-- `fromPureHttp` without status,everytime will only produce promise resolve value.
+- `xhr` without loading,everytime will only produce promise resolve value.
 
 - `And,Or` as the name say.
 
@@ -180,18 +178,6 @@ It returns function which expects a state *stream* and eventHandle which can tra
       })  
     )
   
-  ```
-
-- `HttpComponent` :
-
-  ```js
-  <HttpComponent
-  	data={source}
-  	status={source.status}
-  	loading={<div>Loading...</div>} // when status=='pending'
-          empty={<div>Empty</div>} // when status=='fulfilled' and data is empty
-          render={data=><div>{data}</div>}
-  />
   ```
 
 - `shallowEqual` a function as the name say.

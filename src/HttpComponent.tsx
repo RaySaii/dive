@@ -10,7 +10,7 @@ type IProps = {
     loading?: null | ReactElement<any>,
     render: (data: any) => ReactElement<any>,
 }
-
+/** @deprecated */
 export function IHttpComponent(props: IProps) {
     const { status, data, empty, loading, render } = props
     return (
