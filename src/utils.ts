@@ -40,17 +40,27 @@ export function _debug(message: string, style = '') {
     )
 }
 
-export function _xhrWithStatus(func: (...args: any[]) => Promise<any>) {
-    const request = (...args: any[]) => from(func(...args))
-    return switchMap((...args: any[]) => merge(
-        of([undefined, true]),
-        request(...args).pipe(map(data => [data, false])),
-    ))
+export function _xhrWithStatus(func: (...args: any[]) => Promise<any> | any) {
+    return switchMap((...args: any[]) => {
+        const resolve = func(...args)
+        if (resolve instanceof Promise) {
+            return merge(
+                of([undefined, true]),
+                from(resolve).pipe(map(data => [data, false])),
+            )
+        }
+        return of(resolve)
+    })
 }
 
-export function _xhr(func: (...args: any[]) => Promise<any>) {
-    const request = (...args: any[]) => from(func(...args))
-    return switchMap(request)
+export function _xhr(func: (...args: any[]) => Promise<any> | any) {
+    return switchMap((...args: any[]) => {
+        const resolve = func(...args)
+        if (resolve instanceof Promise) {
+            return from(resolve)
+        }
+        return resolve
+    })
 }
 
 export function _shouldUpdate(compare: (previous: any, current: any) => boolean) {
