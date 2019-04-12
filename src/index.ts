@@ -39,6 +39,13 @@ declare module 'rxjs' {
 function getState(state$: Observable<Reducer>): Subject<State> {
     return state$.pipe(
         scan((state: State, reducer: any) => {
+            if (reducer instanceof Array) {
+                const reducerFn = reducer[0]
+                const innerState$ = reducer[1]
+                const newState = reducerFn(state)
+                innerState$.next(newState)
+                return newState
+            }
             if (typeof reducer == 'function') return reducer(state)
             return state
         }),
@@ -131,12 +138,14 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                 super(props)
                 const _this = this
                 Observable.prototype.reduce = function (reducer) {
+                    const innerState$ = new Subject()
                     let activeSub = () => {
                         return this.subscribe((val: any) => {
-                            _this.state$.next(produce(reducer(val)))
+                            _this.state$.next([produce(reducer(val)), innerState$])
                         })
                     }
                     _this.reducers.push(activeSub)
+                    return innerState$
                 }
                 this.props$ = new BehaviorSubject(props).pipe(
                     distinctUntilChanged(shallowEqual),
