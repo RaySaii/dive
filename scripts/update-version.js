@@ -26,7 +26,7 @@ const run = async () => {
     await writeJson(packageJSONPath, packageJSON, { spaces: 2 })
     execSync('git add ./package.json && git commit -m "version update" && git push', { cwd: process.cwd() })
   } else if (name == 'master') {
-    execSync(`git tag v${version} && git push origin v${version}`)
+    execSync(`git tag v${version} && git push origin v${version} && git push`)
   }
 }
 
