@@ -35,15 +35,19 @@ declare module 'rxjs' {
     }
 }
 
+let currentInner$: Subject<State> | null = null
+let currentState: State | null = null
+export const testInner$ = new Subject()
+
 // 组件状态流
 function getState(state$: Observable<Reducer>): Subject<State> {
     return state$.pipe(
         scan((state: State, reducer: any) => {
             if (reducer instanceof Array) {
                 const reducerFn = reducer[0]
-                const innerState$ = reducer[1]
+                currentInner$ = reducer[1]
                 const newState = reducerFn(state)
-                innerState$.next(newState)
+                currentState = newState
                 return newState
             }
             if (typeof reducer == 'function') return reducer(state)
@@ -141,6 +145,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                     const innerState$ = new Subject()
                     let activeSub = () => {
                         return this.subscribe((val: any) => {
+                            testInner$.next('reduce')
                             _this.state$.next([produce(reducer(val)), innerState$])
                         })
                     }
@@ -165,6 +170,11 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
 
             componentDidUpdate() {
                 this.eventHandleMap['didUpdate'].next()
+                if (currentInner$) {
+                    testInner$.next('didUpdate')
+                    currentInner$.next(currentState!)
+                    currentInner$ = null
+                }
             }
 
             componentDidMount() {

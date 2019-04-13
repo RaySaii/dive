@@ -1,7 +1,7 @@
-import dive from '../index'
+import dive, {testInner$} from '../index'
 import React from 'react'
 import {create} from 'react-test-renderer'
-import {mapTo, map, tap, concatAll, concat, switchMapTo} from 'rxjs/operators'
+import {mapTo, map, tap, concatAll, concat, switchMapTo, bufferCount} from 'rxjs/operators'
 import {marbles, observe} from 'rxjs-marbles/jest'
 import {EMPTY, of, combineLatest, merge, interval} from 'rxjs'
 import Sinon from 'sinon'
@@ -394,11 +394,6 @@ describe('dive sharedState and sharedEvent', () => {
         state.value = 0
       }).subscribe(state => test = state)
 
-      eventHandle.event('sub').reduce(_ => state => {
-        state.value -= 1
-      })
-
-
       return combineLatest(
           state$,
       ).pipe(
@@ -435,6 +430,58 @@ describe('dive sharedState and sharedEvent', () => {
 
   })
 
+  it('should produce new state after component didUpdate', async () => {
+    let test = []
+    const Index = dive({
+      state: {
+        value: 1,
+      },
+      globalEvent: ['add'],
+    })(({ state$, eventHandle }) => {
+
+      interval(100).reduce(_ => state => {
+        state.value += 1
+      })
+
+      eventHandle.event('add').reduce(_ => state => {
+        state.value += 1
+      })
+
+      return combineLatest(
+          state$,
+      ).pipe(
+          map(([state]) => {
+            return <div>
+              <h2>value:{state.value}</h2>
+              <button onClick={eventHandle.handle('add')}>+</button>
+            </div>
+          }),
+      )
+    })
+
+    testInner$.subscribe(val => {
+      test.push(val)
+    })
+
+    const IndexC = create(<Index/>)
+
+    const addButton = IndexC.root.findByType('button')
+
+    addButton.props.onClick()
+    test = test.slice(test.length - 2)
+    expect(test).toEqual(['reduce', 'didUpdate'])
+
+
+    addButton.props.onClick()
+    test = test.slice(test.length - 2)
+    expect(test).toEqual(['reduce', 'didUpdate'])
+
+    await timer.tick(1000)
+
+    test = test.slice(test.length - 2)
+    expect(test).toEqual(['reduce', 'didUpdate'])
+
+  })
 
 })
 
