@@ -1,4 +1,4 @@
-import dive, {testInner$} from '../index'
+import dive from '../index'
 import React from 'react'
 import {create} from 'react-test-renderer'
 import {mapTo, map, tap, concatAll, concat, switchMapTo, bufferCount} from 'rxjs/operators'
@@ -435,16 +435,17 @@ describe('dive sharedState and sharedEvent', () => {
     const Index = dive({
       state: {
         value: 1,
+        loading: false,
       },
-      globalEvent: ['add'],
+      globalState: ['loading'],
     })(({ state$, eventHandle }) => {
 
-      interval(100).reduce(_ => state => {
-        state.value += 1
+      const add$ = eventHandle.event('add').reduce(_ => state => {
+        state.value++
       })
 
-      eventHandle.event('add').reduce(_ => state => {
-        state.value += 1
+      add$.reduce(_ => state => {
+        state.loading = true
       })
 
       return combineLatest(
@@ -459,27 +460,17 @@ describe('dive sharedState and sharedEvent', () => {
       )
     })
 
-    testInner$.subscribe(val => {
-      test.push(val)
-    })
-
     const IndexC = create(<Index/>)
+
+    Index.globalState$.subscribe(({ loading }) => {
+      test.push(loading)
+    })
 
     const addButton = IndexC.root.findByType('button')
 
     addButton.props.onClick()
-    test = test.slice(test.length - 2)
-    expect(test).toEqual(['reduce', 'didUpdate'])
 
-
-    addButton.props.onClick()
-    test = test.slice(test.length - 2)
-    expect(test).toEqual(['reduce', 'didUpdate'])
-
-    await timer.tick(1000)
-
-    test = test.slice(test.length - 2)
-    expect(test).toEqual(['reduce', 'didUpdate'])
+    expect(test).toEqual([false, true])
 
   })
 

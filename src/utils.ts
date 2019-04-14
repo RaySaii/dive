@@ -76,3 +76,8 @@ export function _pickByKey(...args: any[]) {
     })
 }
 
+export function _id() {
+    let id = 0
+    return () => id++
+}
+

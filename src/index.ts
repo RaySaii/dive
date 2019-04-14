@@ -1,6 +1,6 @@
 import { IHttpComponent } from './HttpComponent'
 import _shallowEqual from './shallowEqual'
-import { _And, _debug, _Or, _pickByKey, _shouldUpdate, _xhr, _xhrWithStatus } from './utils'
+import { _And, _debug, _Or, _pickByKey, _shouldUpdate, _xhr, _xhrWithStatus, _id } from './utils'
 import IHTTP from './http'
 import { isPlainObject, pick } from 'lodash'
 import {
@@ -29,27 +29,18 @@ import {
 import { ReactElement } from 'react'
 import produce from 'immer'
 
+const componentId: () => number = _id()
+
 declare module 'rxjs' {
     interface Observable<T> {
         reduce: (fn: (value: T) => ReducerFn) => void
     }
 }
 
-let currentInner$: Subject<State> | null = null
-let currentState: State | null = null
-export const testInner$ = new Subject()
-
 // 组件状态流
 function getState(state$: Observable<Reducer>): Subject<State> {
     return state$.pipe(
         scan((state: State, reducer: any) => {
-            if (reducer instanceof Array) {
-                const reducerFn = reducer[0]
-                currentInner$ = reducer[1]
-                const newState = reducerFn(state)
-                currentState = newState
-                return newState
-            }
             if (typeof reducer == 'function') return reducer(state)
             return state
         }),
@@ -83,9 +74,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
             return map
         }, {})
         return class DiveComponent extends IDiveComponent {
-            active = true
-            init = true
-            state = { vdom: null }
+
             static globalState$ = globalState$
             static globalEvent: GlobalEvent = {
                 handle: eventName => {
@@ -105,12 +94,28 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                     }),
                 ),
             }
-            state$ = getState(new BehaviorSubject(Object.assign(state, currentGlobalState)))
+
+            //组件是否卸载
+            active = true
+            //组件是否是第一次setState
+            init = true
+            //组件vdom
+            state = { vdom: null }
+            //组件id
+            id: number = componentId()
+            //组件状态流
+            state$ = getState(new BehaviorSubject(Object.assign(state, currentGlobalState))).pipe(
+                tap(state => this.currentState = state),
+            ) as Subject<State>
+            currentReducer$: Subject<State> | null = null
+            currentState: State | null = null
+            //组件事件
             eventHandleMap = {
                 didMount: new Subject(),
                 willUnmount: new Subject(),
                 didUpdate: new Subject(),
             }
+            //组件事件处理
             eventHandle: EventHandle = {
                 handle: eventName => {
                     this.eventHandleMap[eventName] = this.eventHandleMap[eventName] || new Subject()
@@ -132,31 +137,38 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                 willUnmount: this.eventHandleMap['willUnmount'],
                 didUpdate: this.eventHandleMap['didUpdate'],
             }
+
             props$: Subject<Props>
             vdom$: Observable<ReactElement<any>>
+            //组件的订阅
             subs: Subscription[] = []
             vdomSub: Subscription | null = null
+            //组件的改变状态的reducer
             reducers: any[] = []
 
             constructor(props: Props) {
                 super(props)
                 const _this = this
                 Observable.prototype.reduce = function (reducer) {
-                    const innerState$ = new Subject()
+                    const newState$ = new Subject()
                     let activeSub = () => {
                         return this.subscribe((val: any) => {
-                            testInner$.next('reduce')
-                            _this.state$.next([produce(reducer(val)), innerState$])
+                            _this.currentReducer$ = newState$
+                            _this.state$.next(produce(reducer(val)))
                         })
                     }
                     _this.reducers.push(activeSub)
-                    return innerState$
+                    return newState$
                 }
                 this.props$ = new BehaviorSubject(props).pipe(
                     distinctUntilChanged(shallowEqual),
                     shareReplay(1),
                 ) as Subject<any>
-                const DOM = func({ state$: this.state$, props$: this.props$, eventHandle: this.eventHandle })
+                const DOM = func({
+                    state$: this.state$,
+                    props$: this.props$,
+                    eventHandle: this.eventHandle,
+                })
                 this.vdom$ = DOM
             }
 
@@ -170,10 +182,9 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
 
             componentDidUpdate() {
                 this.eventHandleMap['didUpdate'].next()
-                if (currentInner$) {
-                    testInner$.next('didUpdate')
-                    currentInner$.next(currentState!)
-                    currentInner$ = null
+                if (this.currentReducer$) {
+                    this.currentReducer$.next(this.currentState!)
+                    this.currentReducer$ = null
                 }
             }
 
