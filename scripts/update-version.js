@@ -28,6 +28,7 @@ const run = async () => {
     execSync('git add ./package.json && git commit -m "version update" && git push', { cwd: process.cwd() })
     execSync('git checkout master && git merge dev', { cwd: process.cwd() })
     execSync(`git tag v${newVersion} && git push origin v${newVersion} && git push`, { cwd: process.cwd() })
+    execSync(`git checkout dev`, { cwd: process.cwd() })
   }
 }
 
