@@ -474,6 +474,115 @@ describe('dive sharedState and sharedEvent', () => {
 
   })
 
+  it('should produce new state after reduce ' +
+      'even if shallowEqual(prevState,curState)==true and component did not update', async () => {
+    let test = 0
+    let renderTimes = 0
+    const Index = dive({
+      state: {
+        value: 1,
+        loading: 0,
+      },
+      globalState: ['loading'],
+    })(({ state$, eventHandle }) => {
+
+      const add$ = eventHandle.event('add').reduce(_ => state => {
+        state.value = 1
+      })
+
+      add$.reduce(_ => state => {
+        state.loading++
+      })
+
+      return combineLatest(
+          state$,
+      ).pipe(
+          map(([state]) => {
+            renderTimes++
+            return <div>
+              <h2>value:{state.value}</h2>
+              <button onClick={eventHandle.handle('add')}>+</button>
+            </div>
+          }),
+      )
+    })
+
+    const IndexC = create(<Index/>)
+
+    Index.globalState$.subscribe(({ loading }) => {
+      test = loading
+    })
+
+    const addButton = IndexC.root.findByType('button')
+
+    addButton.props.onClick()
+    addButton.props.onClick()
+
+    expect(test).toEqual(2)
+    expect(renderTimes).toEqual(3)
+
+  })
+
+
+  it('should globalEvent will produce new state belong invoker not owner', done => {
+
+
+    let test = null
+
+    const Index = dive({
+      state: {
+        value: 1,
+      },
+      globalEvent: ['add'],
+    })(({ state$, eventHandle }) => {
+      eventHandle.event('add').reduce(_ => state => {
+        state.value = 1
+      })
+      return combineLatest(
+          state$,
+      ).pipe(
+          map(([state]) => {
+            return <div>
+              <h2>value:{state.value}</h2>
+              <button onClick={eventHandle.handle('add')}>+</button>
+            </div>
+          }),
+      )
+    })
+
+    const Foo = dive({
+      state: { foo: 1 },
+    })(({ state$, eventHandle }) => {
+
+      Index.globalEvent.event('add').reduce(_ => state => {
+        state.foo += 1
+      }).subscribe(state => {
+        test = state
+      })
+
+      return state$.pipe(
+          map(state =>
+              <div>
+                <h3>Foo Component:</h3>
+                foo:{state.foo}
+              </div>,
+          ),
+      )
+    })
+
+    const IndexC = create(<Index/>)
+
+    const addButton = IndexC.root.findByType('button')
+
+    const FooC = create(<Foo/>)
+
+    addButton.props.onClick()
+
+    expect(test).toEqual({ foo: 2 })
+
+    done()
+  })
+
 })
 
 

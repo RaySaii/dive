@@ -9,7 +9,6 @@ import {
     GlobalEvent,
     IDiveComponent,
     Props,
-    Reducer,
     ReducerFn,
     Sources,
     State,
@@ -35,20 +34,6 @@ declare module 'rxjs' {
     interface Observable<T> {
         reduce: (fn: (value: T) => ReducerFn) => void
     }
-}
-
-// 组件状态流
-function getState(state$: Observable<Reducer>): Subject<State> {
-    return state$.pipe(
-        scan((state: State, reducer: any) => {
-            if (typeof reducer == 'function') return reducer(state)
-            return state
-        }),
-        //浅比较
-        distinctUntilChanged(shallowEqual),
-        //回放，处理多次订阅
-        shareReplay(1),
-    ) as Subject<State>
 }
 
 export default function dive(sources: Sources = { state: {}, globalState: [], globalEvent: [] }) {
@@ -104,9 +89,25 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
             //组件id
             id: number = componentId()
             //组件状态流
-            state$ = getState(new BehaviorSubject(Object.assign(state, currentGlobalState))).pipe(
-                tap(state => this.currentState = state),
-            ) as Subject<State>
+            state$ = new BehaviorSubject(Object.assign(state, currentGlobalState))
+                .pipe(
+                    scan((state: State, reducer: any) => {
+                        if (typeof reducer == 'function') return reducer(state)
+                        return state
+                    }),
+                    //浅比较
+                    _shouldUpdate((previous, current) => {
+                        let hasChange = !shallowEqual(previous, current)
+                        if (!hasChange && this.currentReducer$) {
+                            this.currentReducer$.next(current)
+                            this.currentReducer$ = null
+                        }
+                        return hasChange
+                    }),
+                    //回放，处理多次订阅
+                    shareReplay(1),
+                    tap(state => this.currentState = state),
+                ) as Subject<State>
             currentReducer$: Subject<State> | null = null
             currentState: State | null = null
             //组件事件
