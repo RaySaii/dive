@@ -1,4 +1,4 @@
-import {xhrWithStatus} from '../'
+import {xhr} from '../'
 import {Subject} from 'rxjs'
 import Sinon from 'sinon'
 

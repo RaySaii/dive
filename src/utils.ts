@@ -40,7 +40,7 @@ export function _debug(message: string, style = '') {
     )
 }
 
-export function _xhrWithStatus(func: (...args: any[]) => Promise<any> | any) {
+export function _xhr(func: (...args: any[]) => Promise<any> | any) {
     return switchMap((...args: any[]) => {
         const resolve = func(...args)
         if (resolve instanceof Promise) {
@@ -53,7 +53,7 @@ export function _xhrWithStatus(func: (...args: any[]) => Promise<any> | any) {
     })
 }
 
-export function _xhr(func: (...args: any[]) => Promise<any> | any) {
+export function _await(func: (...args: any[]) => Promise<any> | any) {
     return switchMap((...args: any[]) => {
         const resolve = func(...args)
         if (resolve instanceof Promise) {
