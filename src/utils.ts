@@ -53,7 +53,7 @@ export function _xhr(func: (...args: any[]) => Promise<any> | any) {
     })
 }
 
-export function _await(func: (...args: any[]) => Promise<any> | any) {
+export function _wait(func: (...args: any[]) => Promise<any> | any) {
     return switchMap((...args: any[]) => {
         const resolve = func(...args)
         if (resolve instanceof Promise) {
