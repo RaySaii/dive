@@ -10,7 +10,7 @@ describe('xhr should work correctly', () => {
     let current
     let subject = new Subject()
     subject.pipe(
-        xhrWithStatus(params => Promise.resolve(params)),
+        xhr(params => Promise.resolve(params)),
     ).subscribe(val => {
       current = val
     })
