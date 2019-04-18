@@ -1,6 +1,6 @@
 import { tap, map, distinctUntilChanged, switchMap } from 'rxjs/operators'
 import { isPlainObject, pick } from 'lodash'
-import { from, merge, of } from 'rxjs'
+import { from, isObservable, merge, of } from 'rxjs'
 
 export function _And(...rest: any[]): boolean {
     for (let item of rest) {
@@ -49,7 +49,8 @@ export function _xhr(func: (...args: any[]) => Promise<any> | any) {
                 from(resolve).pipe(map(data => [data, false])),
             )
         }
-        return of(resolve)
+        if (isObservable(resolve)) return resolve
+        return of([resolve, false])
     })
 }
 
@@ -59,7 +60,8 @@ export function _wait(func: (...args: any[]) => Promise<any> | any) {
         if (resolve instanceof Promise) {
             return from(resolve)
         }
-        return resolve
+        if (isObservable(resolve)) return resolve
+        return of(resolve)
     })
 }
 
