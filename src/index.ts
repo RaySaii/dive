@@ -1,6 +1,18 @@
 import { IHttpComponent } from './HttpComponent'
 import _shallowEqual from './shallowEqual'
-import { _And, _debug, _Or, _pickByKey, _shouldUpdate, _xhr, _id, _wait, _effectWith } from './utils'
+import {
+    _And,
+    _debug,
+    _Or,
+    _pickByKey,
+    _shouldUpdate,
+    _xhr,
+    _id,
+    _wait,
+    _effectWith,
+    _xhrWith,
+    _waitWith, _subscribeWith,
+} from './utils'
 import IHTTP from './http'
 import { isPlainObject, pick } from 'lodash'
 import {
@@ -33,8 +45,11 @@ const componentId: () => number = _id()
 declare module 'rxjs' {
     interface Observable<T> {
         reduce: (fn: (value: T) => ReducerFn) => void
+        subscribeWith: (...args: any[]) => void
     }
 }
+
+Observable.prototype.subscribeWith = _subscribeWith
 
 export default function dive(sources: Sources = { state: {}, globalState: [], globalEvent: [] }) {
     const { state = {}, globalState = [], globalEvent = [] } = sources
@@ -282,7 +297,11 @@ export const pickByKey = _pickByKey
 
 export const xhr = _xhr
 
+export const xhrWith = _xhrWith
+
 export const wait = _wait
+
+export const waitWith = _waitWith
 
 export const effectWith = _effectWith
 
