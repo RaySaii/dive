@@ -1,6 +1,6 @@
-import { tap, map, distinctUntilChanged, switchMap } from 'rxjs/operators'
+import { tap, map, distinctUntilChanged, switchMap, withLatestFrom } from 'rxjs/operators'
 import { isPlainObject, pick } from 'lodash'
-import { from, isObservable, merge, of } from 'rxjs'
+import { from, isObservable, merge, Observable, of } from 'rxjs'
 
 export function _And(...rest: any[]): boolean {
     for (let item of rest) {
@@ -83,3 +83,31 @@ export function _id() {
     return () => id++
 }
 
+export function _effectWith(...args: any[]) {
+
+    if (typeof args[args.length - 1] !== 'function') {
+        throw new TypeError('the last argument must be a function')
+    }
+
+    let project = args.pop()
+
+    return (source: Observable<any>) => Observable.create((subscriber: any) => {
+        const subscription = source.pipe(
+            withLatestFrom(...args, (..._args: any[]) => {
+                project(..._args)
+                return _args[0]
+            }),
+        ).subscribe((value: any) => {
+                try {
+                    subscriber.next(value)
+                } catch (err) {
+                    subscriber.error(err)
+                }
+            },
+            (err: Error) => subscriber.error(err),
+            () => subscriber.complete(),
+        )
+
+        return subscription
+    })
+}

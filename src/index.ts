@@ -1,6 +1,6 @@
 import { IHttpComponent } from './HttpComponent'
 import _shallowEqual from './shallowEqual'
-import { _And, _debug, _Or, _pickByKey, _shouldUpdate, _xhr, _id, _wait } from './utils'
+import { _And, _debug, _Or, _pickByKey, _shouldUpdate, _xhr, _id, _wait, _effectWith } from './utils'
 import IHTTP from './http'
 import { isPlainObject, pick } from 'lodash'
 import {
@@ -283,4 +283,6 @@ export const pickByKey = _pickByKey
 export const xhr = _xhr
 
 export const wait = _wait
+
+export const effectWith = _effectWith
 
