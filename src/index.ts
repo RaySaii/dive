@@ -188,10 +188,6 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                 this.vdom$ = DOM
             }
 
-            shouldComponentUpdate(_: any, nextState: Readonly<State>): boolean {
-                return nextState.vdom !== this.state.vdom
-            }
-
             componentWillReceiveProps(nextProps: Props) {
                 this.props$.next(nextProps)
             }
