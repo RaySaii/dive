@@ -9,7 +9,7 @@ type IHttpResponse = {
 }
 
 /** @deprecated  use xhr or xhrWithStatus operator instead */
-class IHTTP {
+class _IHTTP {
     RESOPNSE$$: Subject<Observable<IHttpResponse> | Observable<never>>
     fromHttp: (promise: Promise<any>) => Observable<IHttpResponse>
     fromPureHttp: (promise: Promise<any>) => Observable<any>
@@ -49,4 +49,4 @@ class IHTTP {
 
 }
 
-export default IHTTP
+export default _IHTTP

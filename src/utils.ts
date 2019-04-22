@@ -1,6 +1,6 @@
 import { tap, map, distinctUntilChanged, switchMap, withLatestFrom } from 'rxjs/operators'
 import { isPlainObject, pick } from 'lodash'
-import { from, isObservable, merge, Observable, of } from 'rxjs'
+import { from, isObservable, Observable, of } from 'rxjs'
 
 export function _And(...rest: any[]): boolean {
     for (let item of rest) {
@@ -38,20 +38,6 @@ export function _debug(message: string, style = '') {
             }
         },
     )
-}
-
-export function _xhr(func: (...args: any[]) => Promise<any> | any) {
-    return switchMap((...args: any[]) => {
-        const resolve = func(...args)
-        if (resolve instanceof Promise) {
-            return merge(
-                of([undefined, true]),
-                from(resolve).pipe(map(data => [data, false])),
-            )
-        }
-        if (isObservable(resolve)) return resolve
-        return of([resolve, false])
-    })
 }
 
 export function _wait(func: (...args: any[]) => Promise<any> | any) {
@@ -111,34 +97,6 @@ export function _effectWith(...args: any[]) {
         return subscription
     })
 }
-
-export function _xhrWith(...args: any[]) {
-
-    if (typeof args[args.length - 1] !== 'function') {
-        throw new TypeError('the last argument must be a function')
-    }
-
-    let project = args.pop()
-
-    return (source: Observable<any>) => Observable.create((subscriber: any) => {
-        const subscription = source.pipe(
-            withLatestFrom(...args),
-            _xhr(_arr => project(..._arr)),
-        ).subscribe((value: any) => {
-                try {
-                    subscriber.next(value)
-                } catch (err) {
-                    subscriber.error(err)
-                }
-            },
-            (err: Error) => subscriber.error(err),
-            () => subscriber.complete(),
-        )
-
-        return subscription
-    })
-}
-
 
 export function _waitWith(...args: any[]) {
 

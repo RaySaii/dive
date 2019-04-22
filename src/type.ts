@@ -9,6 +9,14 @@ export type Props = {
     [key: string]: any
 }
 
+export type Driver = {
+    [key: string]: any
+}
+
+export type Loading = {
+    [key: string]: boolean
+}
+
 export type Sources = {
     state: State,
     globalState: string[],

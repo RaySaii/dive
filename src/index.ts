@@ -6,14 +6,13 @@ import {
     _Or,
     _pickByKey,
     _shouldUpdate,
-    _xhr,
     _id,
     _wait,
+    _waitWith,
     _effectWith,
-    _xhrWith,
-    _waitWith, _subscribeWith,
+    _subscribeWith,
 } from './utils'
-import IHTTP from './http'
+import _IHTTP from './http'
 import { isPlainObject, pick } from 'lodash'
 import {
     ComponentFromStream,
@@ -39,6 +38,7 @@ import {
 } from 'rxjs/operators'
 import { ReactElement } from 'react'
 import produce from 'immer'
+import applyHTTPDriver, { IHTTP } from './applyHTTPDriver'
 
 const componentId: () => number = _id()
 
@@ -184,6 +184,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
                     state$: this.state$,
                     props$: this.props$,
                     eventHandle: this.eventHandle,
+                    HTTP: new IHTTP(),
                 })
                 this.vdom$ = DOM
             }
@@ -281,6 +282,7 @@ export default function dive(sources: Sources = { state: {}, globalState: [], gl
 
 }
 
+dive.applyHTTPDriver = applyHTTPDriver
 
 export const And = _And
 
@@ -290,7 +292,7 @@ export const HttpComponent = IHttpComponent
 
 export const shallowEqual = _shallowEqual
 
-export const HTTP = new IHTTP()
+const HTTP = new _IHTTP()
 
 export const fromHttp = HTTP.fromHttp
 
@@ -301,10 +303,6 @@ export const debug = _debug
 export const shouldUpdate = _shouldUpdate
 
 export const pickByKey = _pickByKey
-
-export const xhr = _xhr
-
-export const xhrWith = _xhrWith
 
 export const wait = _wait
 
